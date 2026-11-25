@@ -4,8 +4,8 @@ import {headingFrame} from './projection.js';
 
 // Artwork lives entirely in the rendering layer. These are display dimensions, not hitboxes.
 const PALETTES={
-  friendly:{base:'#69737c',light:'#a8b1b8',dark:'#20262d',edge:'#14191e',panel:'#424950',accent:'#9beaff',glow:'#15b9f6',shade:'#0d1927'},
-  hostile:{base:'#55515b',light:'#a39b9f',dark:'#251f2a',edge:'#17151b',panel:'#4b414b',accent:'#ff6889',glow:'#f43d73',shade:'#1b1127'}
+  friendly:{base:'#596269',light:'#8d99a1',dark:'#1b2025',edge:'#0d1013',panel:'#343b41',accent:'#7fd2ea',glow:'#1294d7',shade:'#11161c'},
+  hostile:{base:'#504d55',light:'#87818a',dark:'#1d1a20',edge:'#0e0c10',panel:'#343038',accent:'#d66b89',glow:'#d63b6f',shade:'#141118'}
 };
 const OUTLINES={
   frigate:[[-43,-12],[-29,-22],[13,-22],[44,-10],[57,0],[44,10],[13,22],[-29,22],[-43,12]],
@@ -35,21 +35,23 @@ function paint(kind,faction,heading){
   function path(points,z){ctx.beginPath();for(let i=0;i<points.length;i++){const [x,y]=point(points[i],z);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);}ctx.closePath();}
   function flat(points,z,fill,stroke=null,width=.65){path(points,z);ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=width;ctx.stroke();}}
   function line(points,z,color,width=1){ctx.beginPath();for(let i=0;i<points.length;i++){const [x,y]=point(points[i],z);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);}ctx.lineWidth=width;ctx.strokeStyle=color;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();}
-  function glow(points,z,width=1.9){ctx.save();ctx.shadowColor=palette.glow;ctx.shadowBlur=3*ppu;line(points,z,palette.accent,width*.65);ctx.restore();}
+  function glow(points,z,width=1.9){ctx.save();ctx.shadowColor=palette.glow;ctx.shadowBlur=2*ppu;line(points,z,palette.accent,width*.55);ctx.restore();}
   function solid(points,z,thickness,top=palette.base){
     // Paint only visible skirt faces, then a top surface with consistent screen-space lighting.
     const sides=[];
     for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length],p=point(a,z),q=point(b,z);if(q[0]<p[0])sides.push({p,q,A:point(a,z-thickness),B:point(b,z-thickness),depth:(p[1]+q[1])/2});}
     sides.sort((a,b)=>a.depth-b.depth);
     for(const s of sides){ctx.beginPath();ctx.moveTo(...s.p);ctx.lineTo(...s.q);ctx.lineTo(...s.B);ctx.lineTo(...s.A);ctx.closePath();ctx.fillStyle=palette.dark;ctx.fill();ctx.strokeStyle=palette.edge;ctx.lineWidth=.8;ctx.stroke();}
-    flat(points,z,top,palette.edge,.65);
+    flat(points,z,top,palette.edge,.55);
     // Directional highlight is always lit from upper left of the screen.
-    path(points,z);const g=ctx.createLinearGradient(-r*.7,-r*.65,r*.65,r*.55);g.addColorStop(0,'rgba(225,248,255,.18)');g.addColorStop(.48,'rgba(255,255,255,.025)');g.addColorStop(1,'rgba(0,0,0,.42)');ctx.fillStyle=g;ctx.fill();
-    for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length],p=point(a,z),q=point(b,z);if(q[0]>p[0])line([a,b],z,'rgba(220,240,255,.26)',.45);}
+    path(points,z);const g=ctx.createLinearGradient(-r*.7,-r*.65,r*.65,r*.55);g.addColorStop(0,'rgba(225,248,255,.12)');g.addColorStop(.48,'rgba(255,255,255,.025)');g.addColorStop(1,'rgba(0,0,0,.42)');ctx.fillStyle=g;ctx.fill();
+    for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length],p=point(a,z),q=point(b,z);if(q[0]>p[0])line([a,b],z,'rgba(220,240,255,.18)',.35);}
   }
   function engine(x,y,w=11,h=7,z=4){solid(rect(x,y-h/2,w,h),z,3,palette.dark);flat(rect(x+1,y-h/2+1,2,h-2),z+.1,palette.accent);glow([[x,y-h/2+1],[x,y+h/2-1]],z,2.2);}
   function vents(x,y,count,z){for(let i=0;i<count;i++)flat(rect(x+i*4,y,1.7,7),z,palette.shade);}
   function rivet(x,y,z){const p=point([x,y],z);ctx.fillStyle=palette.light;ctx.fillRect(p[0]-.65,p[1]-.65,1.3,1.3);}
+  function panelSeam(points,z,width=.55,color=palette.edge){ctx.save();ctx.globalAlpha=.9;line(points,z,color,width);ctx.restore();}
+  function hatch(x0,x1,y,count,z,tilt=0){const span=(x1-x0)/Math.max(1,count-1);for(let i=0;i<count;i++){const x=x0+i*span;panelSeam([[x,y-2],[x+tilt,y+2]],z,.4,palette.shade);}}
   if(kind==='station'){
     // Hexagonal command citadel, docking spokes, segmented outer ring, raised command core.
     for(let i=0;i<4;i++){const a=i*Math.PI/2;const turn=([x,y])=>[x*Math.cos(a)-y*Math.sin(a),x*Math.sin(a)+y*Math.cos(a)];solid([[-65,-13],[65,-13],[65,13],[-65,13]].map(turn),4,8,palette.panel);}
@@ -63,7 +65,7 @@ function paint(kind,faction,heading){
     if(hostile){
       // Organic/segmented silhouettes and repeated armor plates, not just recolored allies.
       for(let j=0;j<5;j++){const x=-29+j*13,w=kind==='carrier'?25-Math.abs(j-2)*4:kind==='destroyer'?24-j*3:18-j*2;solid([[x-5,-w],[x+6,-w*.8],[x+10,0],[x+6,w*.8],[x-5,w],[x,0]],8+j*.7,3,j%2?palette.panel:palette.base);}
-      solid([[-21,-7],[17,-10],[47,0],[17,10],[-21,7]],14,6,palette.dark);glow([[-12,0],[35,0],[47,0]],14,2.6);
+      solid([[-21,-7],[17,-10],[47,0],[17,10],[-21,7]],14,6,palette.dark);panelSeam([[-18,0],[39,0]],15,.55,palette.light);glow([[-12,0],[35,0],[47,0]],14,2.2);
       for(const s of [-1,1]){glow([[-29,s*13],[-7,s*17],[12,s*13]],9,1.9);engine(-37,s*12,11,6,6);}
       if(kind==='carrier')for(const s of [-1,1]){solid([[-3,s*24],[13,s*29],[36,s*24],[43,s*17],[12,s*18]],10,4,palette.shade);glow([[7,s*24],[32,s*22]],10.5,2.5);}
       if(kind==='missile')for(const s of [-1,1])for(let i=0;i<4;i++){const x=-11+i*7;solid(rect(x,s*13-2.5,5,5),13,3,palette.light);flat(rect(x+1,s*13-1.3,2,2.6),13.5,palette.accent);}
@@ -72,17 +74,17 @@ function paint(kind,faction,heading){
       for(const s of [-1,1]){engine(-42,s*(kind==='carrier'?22:kind==='destroyer'?17:11),15,8,6);glow([[-28,s*8],[-15,s*8]],6,1.8);}
       if(kind==='carrier'){
         for(const s of [-1,1]){solid([[-33,s*13],[-19,s*31],[23,s*31],[37,s*22],[30,s*13]],9,5,palette.base);flat([[-26,s*17],[-13,s*27],[22,s*27],[30,s*20],[22,s*17]],9.4,palette.shade,palette.edge,1);for(let j=0;j<4;j++)line([[-15+j*10,s*19],[-15+j*10,s*25]],10,palette.light,.8);glow([[-22,s*16],[24,s*16]],10,1.8);glow([[-22,s*28],[21,s*28]],10,1.8);}
-        solid([[-24,-9],[16,-9],[31,0],[16,9],[-24,9]],16,7,palette.light);solid(rect(-11,-6,18,12),20,4,palette.dark);glow([[4,-5],[9,0],[4,5]],20,2.1);
+        solid([[-24,-9],[16,-9],[31,0],[16,9],[-24,9]],16,7,palette.light);panelSeam([[-20,-4],[11,-4],[22,0],[11,4],[-20,4]],17,.45);hatch(-14,10,-18,4,10,0);hatch(-14,10,18,4,10,0);solid(rect(-11,-6,18,12),20,4,palette.dark);panelSeam([[-8,0],[7,0]],20.5,.6,palette.light);glow([[4,-5],[9,0],[4,5]],20,2.1);
       }else if(kind==='missile'){
-        solid([[-28,-8],[14,-9],[40,-4],[48,0],[40,4],[14,9],[-28,8]],12,6,palette.light);
+        solid([[-28,-8],[14,-9],[40,-4],[48,0],[40,4],[14,9],[-28,8]],12,6,palette.light);panelSeam([[-24,0],[36,0]],13,.5);hatch(-18,8,-2,4,13,1);hatch(-18,8,2,4,13,-1);
         for(const s of [-1,1]){solid(rect(-24,s*14-5,38,10),10,5,palette.dark);for(let i=0;i<5;i++){const x=-22+i*7;solid(rect(x,s*14-3,5,6),11,2,palette.light);flat(rect(x+.6,s*14-2,2.6,4),11.2,palette.shade);glow([[x+3,s*14],[x+4,s*14]],11.5,1.1);}}
         solid(rect(-15,-5,20,10),18,6,palette.dark);glow([[3,-4],[8,0],[3,4]],18,2.1);
       }else if(kind==='destroyer'){
-        for(const s of [-1,1]){solid([[-35,s*10],[-18,s*24],[0,s*22],[18,s*8],[5,s*5]],11,6,palette.light);vents(-26,s*13-3,4,11.5);glow([[-29,s*18],[-16,s*18]],12,2);}
+        for(const s of [-1,1]){solid([[-35,s*10],[-18,s*24],[0,s*22],[18,s*8],[5,s*5]],11,6,palette.light);panelSeam([[-27,s*13],[-2,s*16]],12,.45);vents(-26,s*13-3,4,11.5);glow([[-29,s*18],[-16,s*18]],12,2);}
         solid([[-25,-7],[21,-10],[48,-6],[58,0],[48,6],[21,10],[-25,7]],15,8,palette.base);solid(rect(12,-4,40,8),19,6,palette.light);glow([[48,-4],[55,0],[48,4]],20,3.2);solid(rect(-15,-7,17,14),21,6,palette.dark);glow([[-2,-5],[4,0],[-2,5]],21,2.3);
       }else if(kind==='frigate'){
         for(const s of [-1,1]){solid([[-27,s*9],[-21,s*18],[7,s*18],[25,s*9],[7,s*5]],11,6,palette.light);vents(-20,s*12-3,4,11.6);glow([[-23,s*17],[8,s*17]],12,1.6);}
-        solid([[-28,-7],[17,-10],[43,-4],[51,0],[43,4],[17,10],[-28,7]],15,7,palette.base);solid([[-12,-7],[8,-7],[19,0],[8,7],[-12,7]],22,7,palette.light);flat([[4,-5],[12,0],[4,5],[-3,4],[-3,-4]],22.5,palette.dark);glow([[4,-4],[11,0],[4,4]],23,2);solid(rect(-23,-3,7,6),24,9,palette.dark);glow([[-22,0],[-16,0]],25,2);
+        solid([[-28,-7],[17,-10],[43,-4],[51,0],[43,4],[17,10],[-28,7]],15,7,palette.base);panelSeam([[-23,0],[40,0]],16,.5);solid([[-12,-7],[8,-7],[19,0],[8,7],[-12,7]],22,7,palette.light);flat([[4,-5],[12,0],[4,5],[-3,4],[-3,-4]],22.5,palette.dark);glow([[4,-4],[11,0],[4,4]],23,2);solid(rect(-23,-3,7,6),24,9,palette.dark);glow([[-22,0],[-16,0]],25,2);
       }else if(kind==='miner'){
         solid(rect(-25,-14,26,28),13,8,palette.light);for(let i=0;i<3;i++){solid(rect(-22+i*8,-11,6,22),15,3,'#c4a16b');line([[-22+i*8,-8],[-16+i*8,-8]],15.5,palette.dark,.7);}for(const s of [-1,1]){solid(rect(0,s*13-4,23,8),10,5,palette.dark);solid([[21,s*13-4],[38,s*10],[43,s*4],[28,s*3]],10,6,'#e1b36b');}solid(rect(1,-8,16,16),19,8,palette.base);glow([[11,-6],[15,0],[11,6]],20,2);
       }else if(kind==='constructor'){

@@ -40,9 +40,23 @@ export class BattlefieldRenderer {
   }
   drawBackground(w,h){
     const {ctx,camera:c}=this;const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,'#010204');g.addColorStop(.48,'#000000');g.addColorStop(1,'#050306');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
-    // Decorative atmosphere only; does not imply the later gameplay nebula mechanic.
-    const clouds=[{x:.18,y:.72,r:.72,color:'rgba(19,40,61,.08)'},{x:.82,y:.25,r:.68,color:'rgba(65,22,51,.09)'},{x:.42,y:.25,r:.48,color:'rgba(32,45,77,.05)'}];
-    for(const q of clouds){const x=w*q.x-(c.x-900)*.018,y=h*q.y-(c.y-900)*.012,r=Math.max(w,h)*q.r;const grad=ctx.createRadialGradient(x,y,0,x,y,r);grad.addColorStop(0,q.color);grad.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=grad;ctx.fillRect(0,0,w,h);}
+    // Keep background nearly black; use faint oblique dust bands instead of radial clouds
+    // so the scene avoids visible circular artifacts. These are cosmetic only.
+    const bands=[
+      {x:.18,y:.72,len:1.18,width:.13,angle:-.38,color:'rgba(28,58,92,.028)',parallax:.016},
+      {x:.78,y:.24,len:1.05,width:.11,angle:.54,color:'rgba(76,35,58,.026)',parallax:.013},
+      {x:.52,y:.38,len:.82,width:.08,angle:-.12,color:'rgba(58,68,104,.02)',parallax:.019},
+      {x:.66,y:.62,len:.64,width:.06,angle:.2,color:'rgba(90,54,44,.015)',parallax:.011}
+    ];
+    for(const b of bands){
+      const cx=w*b.x-(c.x-900)*w*b.parallax/1800,cy=h*b.y-(c.y-900)*h*b.parallax*.8/1800;
+      const len=Math.max(w,h)*b.len,halfW=Math.max(w,h)*b.width;
+      ctx.save();ctx.translate(cx,cy);ctx.rotate(b.angle);
+      const grad=ctx.createLinearGradient(-len/2,0,len/2,0);
+      grad.addColorStop(0,'rgba(0,0,0,0)');grad.addColorStop(.2,'rgba(0,0,0,0)');grad.addColorStop(.5,b.color);grad.addColorStop(.8,'rgba(0,0,0,0)');grad.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=grad;ctx.fillRect(-len/2,-halfW,len,halfW*2);
+      ctx.restore();
+    }
     const wrap=(v,n)=>((v%n)+n)%n;
     this.stars.forEach((layer,i)=>{const parallax=(i+1)*.035;for(const s of layer){const x=wrap(s.x*w-c.x*parallax,w),y=wrap(s.y*h-c.y*parallax*.65,h);ctx.globalAlpha=s.a;ctx.fillStyle=s.color;ctx.beginPath();ctx.arc(x,y,s.r,0,TAU);ctx.fill();if(i===2&&s.a>.6){ctx.globalAlpha=s.a*.24;ctx.fillRect(x-3,y-.4,6,.8);ctx.fillRect(x-.4,y-3,.8,6);}}});ctx.globalAlpha=1;
   }

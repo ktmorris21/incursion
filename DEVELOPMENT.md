@@ -74,3 +74,7 @@ Milestone 1 approved; visual feedback incorporated. The new increment retains Ca
 ### Deferred
 
 Milestone 3 battlefield generation/navigation/fog/minimap and all later milestones: fleet command, economy/construction, waves, match objective, complete UI, audio and polish. Stop at this review gate until explicit user approval or continuation.
+
+### Milestone 2 visual refinement
+
+User requested less cartoonish ships and removal of circular background artifacts. Muted hull palettes, reduced emissive accents and edge highlights, added subtle hull seams and hatch details. Removed large radial background clouds; replaced them with faint oblique dust bands over the near-black starfield. No combat, camera, ship speed, scale or simulation changes. Local core suite rerun: 25/25 passed. Browser visual review and native Canvas tests for this refinement remain outstanding. Remain at Milestone 2.
