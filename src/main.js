@@ -1,13 +1,13 @@
-import {CONFIG,LABELS} from './config.js';
-import {makeDemo,step,applyCommand,drainEvents} from './core/state.js';
+import {CONFIG,LABELS,COMBAT} from './config.js';
+import {makeBattle,step,applyCommand,drainEvents} from './core/state.js';
 import {FixedClock} from './core/clock.js';
 import {Camera} from './rendering/projection.js';
 import {BattlefieldRenderer} from './rendering/renderer.js';
 import {attachInput} from './ui/input.js';
 const $=id=>document.getElementById(id);
 function start(){
-  const canvas=$('battlefield'),camera=new Camera();let state=makeDemo(),selected=null,pointer=null,frameAlpha=1,lastFrame=null,lastUI=0,frameMs=0,stepMs=0,toastTimer=0;
-  const renderer=new BattlefieldRenderer(canvas,camera);const clock=new FixedClock(dt=>{const t=performance.now();step(state,dt);drainEvents(state);stepMs=stepMs*.92+(performance.now()-t)*.08;});
+  const canvas=$('battlefield'),camera=new Camera();let state=makeBattle(),selected=null,pointer=null,frameAlpha=1,lastFrame=null,lastUI=0,frameMs=0,stepMs=0,toastTimer=0;
+  const renderer=new BattlefieldRenderer(canvas,camera);const clock=new FixedClock(dt=>{const t=performance.now();step(state,dt);renderer.addEvents(drainEvents(state),state.time);stepMs=stepMs*.92+(performance.now()-t)*.08;});
   const debugAllowed=new URLSearchParams(location.search).has('debug');let debugOpen=debugAllowed;const speedButtons=[...document.querySelectorAll('[data-speed]')];
   function announce(msg){$('toast').textContent=msg;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,3200);}
   function quality(){const q=$('quality').value;if(q!=='auto')return q;return navigator.maxTouchPoints>0?'medium':'high';}
@@ -15,21 +15,24 @@ function start(){
   function fit(){const es=state.entities;if(es.length){camera.fit({minX:Math.min(...es.map(e=>e.x))-100,minY:Math.min(...es.map(e=>e.y))-100,maxX:Math.max(...es.map(e=>e.x))+100,maxY:Math.max(...es.map(e=>e.y))+100},CONFIG.camera.fitPadding);camera.panPixels(0,Math.min(camera.height*.035,25));}else camera.fit();render();updateUI(true);}
   function getSelected(){return state.entities.find(e=>e.id===selected)??null;}
   function render(){renderer.draw(state,clock.paused?1:frameAlpha,selected);}
-  function select(p){selected=renderer.pick(p.x,p.y);render();updateUI(true);}
+  let placement=null;
+  function select(p){if(placement){const q=camera.screenToWorld(p.x,p.y),mode=placement;placement=null;if(mode==='position')command({type:'position',id:selected,...q});else {const r=command({type:'spawn',data:{kind:$('shipKind').value,faction:$('shipFaction').value,...q}});if(r.ok)selected=r.id;}render();updateUI(true);return;}selected=renderer.pick(p.x,p.y);render();updateUI(true);}
   function focusEntity(e){if(!e)return;camera.focus(e.x,e.y);camera.zoom=Math.max(camera.zoom,1.25);render();updateUI(true);}
-  function setPaused(value,reason){clock.setPaused(value);frameAlpha=1;lastFrame=null;render();updateUI(true);if(reason)announce(reason);}
+  function setPaused(value,reason){if(value)placement=null;clock.setPaused(value);frameAlpha=1;lastFrame=null;render();updateUI(true);if(reason)announce(reason);}
   function togglePause(){setPaused(!clock.paused);}
   function updateUI(force=false){
     const t=state.time,min=Math.floor(t/60),sec=Math.floor(t%60),dec=Math.floor((t%1)*10+1e-6);$('time').textContent=`${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${dec}`;$('clockStatus').textContent=clock.paused?'PAUSED':'RUNNING';$('clockStatus').classList.toggle('paused',clock.paused);$('pause').textContent=clock.paused?'▶ Resume':'Ⅱ Pause';$('pause').setAttribute('aria-pressed',String(clock.paused));
     for(const b of speedButtons)b.setAttribute('aria-pressed',String(Number(b.dataset.speed)===clock.speed));$('zoomLevel').textContent=Math.round(camera.zoom*100)+'%';
-    const e=getSelected();$('entityName').textContent=e?e.label:'Select a vessel';$('entityType').textContent=e?`${e.faction==='friendly'?'Friendly':'Hostile'} • ${LABELS[e.kind]} • visual fixture`:'Click or tap any sprite to inspect it.';$('entityData').hidden=!e;$('focus').disabled=!e;
+    const e=getSelected();$('entityName').textContent=e?e.label:'Select a vessel';$('entityType').textContent=e?`${e.faction==='friendly'?'Friendly':'Hostile'} • ${LABELS[e.kind]} • combat sandbox`:'Click or tap any sprite to inspect it.';$('entityData').hidden=!e;$('focus').disabled=!e;
+    $('battleStatus').textContent=state.outcome??(state.engaged?'ENGAGED':'SETUP');$('counts').textContent=state.entities.filter(e=>e.faction==='friendly').length+' friendly / '+state.entities.filter(e=>e.faction==='hostile').length+' hostile';$('energy').textContent=Math.floor(state.energy)+' E • '+Math.round(state.energyFactor*100)+'% repair';$('engage').disabled=clock.paused||state.engaged;$('sandboxSpawn').disabled=clock.paused;$('position').disabled=clock.paused||!e;$('loadPreset').disabled=clock.paused;$('health').textContent=e?Math.ceil(e.shield)+' / '+e.maxShield+' S · '+Math.ceil(e.hull)+' / '+e.maxHull+' H':'—';$('weapon').textContent=e?COMBAT.classes[e.kind].damage+' / '+COMBAT.classes[e.kind].interval+'s · '+COMBAT.classes[e.kind].range+' range':'—';
     if(e){$('entityId').textContent='#'+e.id;$('entityPosition').textContent=`${e.x.toFixed(1)}, ${e.y.toFixed(1)}`;$('entityHeading').textContent=((e.heading*180/Math.PI%360+360)%360).toFixed(1)+'°';}
     if(debugAllowed){$('step').disabled=!clock.paused;$('spawn').disabled=clock.paused;$('remove').disabled=clock.paused||!e;if(debugOpen){const world=pointer?camera.screenToWorld(pointer.x,pointer.y):null;$('diagnosticText').textContent=[`FPS (smoothed) ${frameMs>0?(1000/frameMs).toFixed(1):'—'}`,`Sim step avg   ${stepMs.toFixed(3)} ms`,`Tick / Hz      ${state.tick} / ${CONFIG.clock.hz}`,`Entities       ${state.entities.length} (${renderer.visibleItems.length} drawn)`,`Seed           ${state.seed}`,`Camera         ${camera.x.toFixed(1)}, ${camera.y.toFixed(1)}`,`Zoom / tilt    ${camera.zoom.toFixed(3)} / ${CONFIG.camera.compression}`,`CSS viewport   ${Math.round(camera.width)} × ${Math.round(camera.height)}`,`Backing store  ${canvas.width} × ${canvas.height}`,`DPR / quality  ${renderer.ratio.toFixed(2)} / ${renderer.quality}`,`Dropped sim s  ${clock.droppedSeconds.toFixed(3)}`,`Pointer world  ${world?world.x.toFixed(1)+', '+world.y.toFixed(1):'—'}`,`Sprite cache   ${renderer.registry.cache.size}`,`Selected       ${e?JSON.stringify({id:e.id,kind:e.kind,x:+e.x.toFixed(1),y:+e.y.toFixed(1)}):'none'}`].join('\n');}}
   }
   function setDebug(value){debugOpen=debugAllowed&&value;$('debugPanel').hidden=!debugOpen;$('debugToggle').hidden=!debugAllowed;$('debugToggle').setAttribute('aria-pressed',String(debugOpen));renderer.debug=debugOpen&&$('debugGrid').checked;render();updateUI(true);}
-  function reset(){if(clock.paused){announce('Resume before resetting the demo.');return;}state=makeDemo();selected=null;renderer.registry.clear();clock.reset();frameAlpha=1;fit();announce('Foundation scene reset.');}
-  function command(c){const r=applyCommand(state,c,clock.paused);drainEvents(state);if(!r.ok)announce(r.reason??'Command rejected');render();updateUI(true);return r;}
+  function reset(){if(clock.paused){announce('Resume before resetting the demo.');return;}state=makeBattle($('preset').value,$('closeRange').checked);selected=null;placement=null;renderer.effects=[];renderer.registry.clear();clock.reset();frameAlpha=1;fit();announce('Combat scenario reset.');}
+  function command(c){const r=applyCommand(state,c,clock.paused);renderer.addEvents(drainEvents(state),state.time);if(!r.ok)announce(r.reason??'Command rejected');render();updateUI(true);return r;}
   const input=attachInput(canvas,camera,{onSelect:select,onFocus:p=>{select(p);focusEntity(getSelected());},onPointer:p=>pointer=p,onCamera:()=>{render();updateUI(true);},onPause:togglePause,onFit:fit});
+  $('loadPreset').onclick=reset;$('engage').onclick=()=>{placement=null;command({type:'engage'});};$('sandboxSpawn').onclick=()=>{placement='spawn';announce('Click or tap the battlefield to spawn the chosen ship.');};$('position').onclick=()=>{placement='position';announce('Click or tap the destination for the selected sandbox ship.');};$('cancelPlacement').onclick=()=>{placement=null;announce('Placement cancelled.');};
   $('pause').onclick=togglePause;speedButtons.forEach(b=>b.onclick=()=>{clock.setSpeed(Number(b.dataset.speed));updateUI(true);});$('reset').onclick=reset;$('focus').onclick=()=>focusEntity(getSelected());$('fit').onclick=fit;$('zoomIn').onclick=()=>{camera.zoomAt(1.25);render();updateUI(true);};$('zoomOut').onclick=()=>{camera.zoomAt(.8);render();updateUI(true);};$('quality').onchange=resize;$('labels').onchange=e=>{renderer.labels=e.target.checked;render();};
   $('collapseInspector').onclick=()=>{const body=$('inspectBody');body.hidden=!body.hidden;$('collapseInspector').textContent=body.hidden?'+':'−';$('collapseInspector').setAttribute('aria-expanded',String(!body.hidden));};
   $('debugToggle').onclick=()=>setDebug(!debugOpen);$('debugClose').onclick=()=>setDebug(false);$('debugGrid').onchange=()=>setDebug(debugOpen);
