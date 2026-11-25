@@ -1,9 +1,9 @@
 # Incursion development instructions
 
-- Read the current root `GAME_SPEC.md` first. Version 1.1 supersedes the old all-at-once implementation. `DEVELOPMENT.md` records current gate status and evidence.
+- Read the current root `GAME_SPEC.md` first. Version 1.1 supersedes the old all-at-once implementation. Milestone 1 is approved; Milestone 2 is the current review gate. `DEVELOPMENT.md` records current gate status and evidence.
 - Implement milestones sequentially, with one runnable, tested increment per gate. Stop for human approval or explicit continuation before starting the next milestone. Do not scaffold deferred features speculatively.
 - Preserve directly servable native ES modules and Canvas 2D sprite-based rendering. No runtime 3D/WebGL, external gameplay services, mandatory build process, dependency installation or backend.
 - Keep authoritative simulation state plain and independent of DOM/rendering, with fixed 20 Hz steps, validated commands, stable IDs and deterministic ties. Keep all gameplay distances in world coordinates. Camera projection, art, visual quality and cosmetic effects cannot alter simulation outcomes.
-- Use grouped configuration for tunable values; document units, assumptions and any balance changes. Preserve accepted rules in the specification. Do not carry over the previous build's income change; the current spec's starting economy default is 60 E/s when economy is implemented.
+- Use grouped configuration for tunable values; document units, assumptions and any balance changes. Preserve accepted rules in the specification. The user-directed provisional speed, projection and art changes are recorded in DEVELOPMENT.md; sandbox position/spawn commands must not become individual orders for subordinate combat ships. Do not carry over the previous build's income change; the current spec's starting economy default is 60 E/s when economy is implemented.
 - Run `/tests/` and applicable core checks (`node tests/run.mjs` on Node 22+) before submitting each increment. Add focused tests for newly introduced behavior. Record executed vs. unexecuted tests, actual browser/device evidence and limitations. Do not claim hardware performance or playability without measurement.
 - Maintain README and DEVELOPMENT at each review gate. Preserve the original specification unless the user explicitly requests a spec edit.
