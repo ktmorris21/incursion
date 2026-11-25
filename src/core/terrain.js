@@ -21,6 +21,12 @@ function pointBlocked(p,z,r){
  if(inside(p,z))return true;
  return z.points.some((a,i)=>pointSeg2(p,a,z.points[(i+1)%z.points.length])<r*r);
 }
+// Shared exact interior clearance for decorative rocks; prevents their meshes
+// extending beyond a terrain polygon into a neighbouring terrain type.
+export function interiorClear(p,z,r){
+ return inside(p,z)&&z.points.every((a,i)=>pointSeg2(p,a,z.points[(i+1)%z.points.length])>=r*r);
+}
+export function polygonArea(z){let sum=0;for(let i=0;i<z.points.length;i++){const a=z.points[i],b=z.points[(i+1)%z.points.length];sum+=a.x*b.y-a.y*b.x;}return Math.abs(sum)/2;}
 export const speedFactor=(map,p)=>map?.sparse.some(z=>inside(p,z))?.65:1;
 export const sensorFactor=(map,p)=>map?.nebula.some(z=>inside(p,z))?.65:1;
 export const clearance=e=>CONFIG.separation.radii[e.kind]??35;
