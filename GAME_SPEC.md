@@ -21,7 +21,7 @@ The player starts with a command station, a small fleet and civilian support ves
 
 - **Composition:** a hard-counter combat triangle makes the choice of ships materially important.
 - **Geography:** procedural terrain and variable approach corridors change the optimal defense every match.
-- **Positioning:** at most three command frigates control the entire mobile combat force; static defenses cover gaps and free fleets to redeploy.
+- **Positioning:** at most three command ships control the entire mobile combat force; static defenses cover gaps and free fleets to redeploy.
 - **Investment:** a single continuous-flow energy economy creates competition among construction, production and combat recovery.
 - **Accessibility:** low micromanagement, short matches, a clear interface and landscape-first mobile support.
 - **Spectacle:** colorful fighter swarms, missile salvos, solid energy beams, shields and explosions are core presentation requirements, not optional end-stage decoration.
@@ -60,12 +60,12 @@ Multiple potential wormhole sites are generated and visible from the beginning. 
 ## 3. Match loop and game state
 
 1. Choose duration, difficulty and seed; preview the generated map and accept or regenerate it.
-2. Begin with one command station, one shipyard, one command frigate, one light carrier, one missile cruiser and one destroyer assigned to it, one miner and one constructor; baseline energy income and stored energy; no initial defensive towers or barriers.
+2. Begin with one command station, one shipyard, one command ship, one light carrier, one missile cruiser and one destroyer assigned to it, one miner and one constructor; baseline energy income and stored energy; no initial defensive towers or barriers.
 3. During a short grace period, deploy the miner, position the fleet and initiate construction and production.
 4. Automatically spawn an enemy wave. The player positions fleets and relies on automatic combat and static defenses.
 5. Once every enemy from the wave is eliminated, start the recovery countdown. The next wave begins automatically after it expires. Energy, construction and charging continue during both combat and recovery.
 6. Expand energy extraction, add defenses, develop up to three fleets, adapt to announced wormhole relocations.
-7. After the automatic charge completes, collect and deliver the device using a command frigate. Survive while deploying it.
+7. After the automatic charge completes, collect and deliver the device using a command ship. Survive while deploying it.
 8. Win when deployment completes; lose immediately if the command station is destroyed. Stop gameplay simulation and present results over the existing battlefield.
 
 Match duration presets are 10, 20 and 30 simulation minutes, representing the time to device readiness, not a hard timeout. Actual completion may take longer. Difficulty and speed are independent. Simulation speeds are 0.5×, 1× and 2×. Pause freezes all gameplay and prohibits gameplay orders, but allows camera movement, inspection and settings. Automatically pause when the tab becomes hidden; require explicit resume (recommended). No active match save/load.
@@ -83,7 +83,7 @@ Match duration presets are 10, 20 and 30 simulation minutes, representing the ti
 | Destroyer | 2.0 | 0.75 | 1.0 | 1.0 |
 | Neutral class | 1.0 | 1.0 | 1.0 | 1.0 |
 
-These are accepted initial configurable multipliers. The 2/0.75 ratio is approximately 2.67:1 before base damage differences. Missile batteries belong to the missile class; beam turrets belong to the destroyer class, both for outgoing and incoming damage. Other structures, command frigates and civilian vessels are neutral. No carrier-equivalent tower.
+These are accepted initial configurable multipliers. The 2/0.75 ratio is approximately 2.67:1 before base damage differences. Missile batteries belong to the missile class; beam turrets belong to the destroyer class, both for outgoing and incoming damage. Other structures, command ships and civilian vessels are neutral. No carrier-equivalent tower.
 
 ### 4.2 Ship characteristics
 
@@ -92,10 +92,10 @@ These are accepted initial configurable multipliers. The 2/0.75 ratio is approxi
 | Light carrier | Highest | Medium | Lowest | Swarms of small fighters firing blaster bolts |
 | Missile cruiser | Lowest | Longest | Medium | Missile salvos |
 | Destroyer | Medium | Shortest | Highest | Solid concentrated energy beams |
-| Command frigate | Light defensive fire | Modest | Configurable | Small energy bolts |
+| Command ship | Light defensive fire | Modest | Configurable | Small energy bolts |
 | Miner / constructor | None (recommended) | None | Configurable | No weapon |
 
-All combat classes share normal movement speed and terrain restrictions. No speed-based combat counter mechanics. Command frigates and civilian vessels are outside the triangle. Enemy has only the three primary combat classes and no physical command frigates.
+All combat classes share normal movement speed and terrain restrictions. No speed-based combat counter mechanics. Command ships and civilian vessels are outside the triangle. Enemy has only the three primary combat classes and no physical command ships.
 
 ### 4.3 Damage and recovery
 
@@ -105,33 +105,33 @@ Each damageable asset has shield HP and hull HP. Damage first consumes shields; 
 
 ### 4.4 Autonomous engagement
 
-Ships automatically engage the nearest eligible enemy within range and maneuver within their command frigate's operational limits. They may position according to weapon range, but do not independently pursue beyond the engagement leash. On movement orders, follow the frigate and engage targets opportunistically without abandoning fleet cohesion. Static weapons target nearest eligible enemies in range. No individual combat orders, stances or attack-move interface is required.
+Ships automatically engage the nearest eligible enemy within range and maneuver within their command ship's operational limits. They may position according to weapon range, but do not independently pursue beyond the engagement leash. On movement orders, follow the command ship and engage targets opportunistically without abandoning fleet cohesion. Static weapons target nearest eligible enemies in range. No individual combat orders, stances or attack-move interface is required.
 
 ## 5. Mobile units and fleet command
 
 ### 5.1 Roster
 
-Friendly: command frigate, light carrier, missile cruiser, destroyer, miner, constructor. Hostile: light carrier, missile cruiser, destroyer only. Carrier fighters are cosmetic representations of their parent carrier's attacks; never independent combat entities.
+Friendly: command ship, light carrier, missile cruiser, destroyer, miner, constructor. Hostile: light carrier, missile cruiser, destroyer only. Carrier fighters are cosmetic representations of their parent carrier's attacks; never independent combat entities.
 
 ### 5.2 Command and capacity
 
-Maximum three command frigates, each with ten subordinate combat ship slots. Each ship consumes one slot. Count queued frigates against the frigate limit and reserved/in-transit reinforcements against fleet capacity (recommended). Civilian ships do not consume fleet capacity. The player directly controls only command frigates and civilian ships.
+Maximum three command ships, each with ten subordinate combat ship slots. Each ship consumes one slot. Count queued command ships against the command ship limit and reserved/in-transit reinforcements against fleet capacity (recommended). Civilian ships do not consume fleet capacity. The player directly controls only command ships and civilian ships.
 
-Command frigates accept move orders only and automatically defend upon arrival. Subordinates follow, separate locally, compress through narrow corridors and reform. Formation shape is secondary to successful navigation. Use configurable formation and engagement radii. A follower must not remain permanently stuck at an unreachable formation offset. All fleet movement obeys terrain and world bounds.
+Command ships accept move orders only and automatically defend upon arrival. Subordinates follow, separate locally, compress through narrow corridors and reform. Formation shape is secondary to successful navigation. Use configurable formation and engagement radii. A follower must not remain permanently stuck at an unreachable formation offset. All fleet movement obeys terrain and world bounds.
 
 ### 5.3 Production and reinforcement lifecycle
 
-Shipyards build individual ships. A player can select a destination command frigate when queuing a combat ship. Upon completion, assigned ships travel physically at accelerated speed to the moving frigate, invulnerable until arrival. They cannot fire or be targeted during this special transit (recommended). They still respect impassable terrain. This travel mode is only for newly produced reinforcements, never for general movement, retreat or reassignment.
+Shipyards build individual ships. A player can select a destination command ship when queuing a combat ship. Upon completion, assigned ships travel physically at accelerated speed to the moving command ship, invulnerable until arrival. They cannot fire or be targeted during this special transit (recommended). They still respect impassable terrain. This travel mode is only for newly produced reinforcements, never for general movement, retreat or reassignment.
 
-If a destination frigate is lost before production or transit completes, cancel its reservation and send the ship to the command station as an ordinary unassigned ship. Unassigned ships return to base, remain there, and automatically defend the local area. A frigate entering the collection radius automatically collects available unassigned ships up to capacity. It must physically collect them; no remote reassignment after command loss. Transfers between existing fleets are permitted only near friendly shipyards; use a simple manual transfer interaction and respect capacity. No automatic transfers between operational fleets.
+If a destination command ship is lost before production or transit completes, cancel its reservation and send the ship to the command station as an ordinary unassigned ship. Unassigned ships return to base, remain there, and automatically defend the local area. A command ship entering the collection radius automatically collects available unassigned ships up to capacity. It must physically collect them; no remote reassignment after command loss. Transfers between existing fleets are permitted only near friendly shipyards; use a simple manual transfer interaction and respect capacity. No automatic transfers between operational fleets.
 
 ### 5.4 Command loss
 
-Frigate destruction is a substantial strategic event. Surviving subordinates lose their assignment, retreat to the command station at normal speed, remain vulnerable during retreat and defend on arrival. Replacement frigates are buildable but expensive and slow relative to ordinary combat ships. Keep the lost fleet slot visible in the interface and notify the player. If it carried the destabilizer, drop the device at its destruction position.
+Command ship destruction is a substantial strategic event. Surviving subordinates lose their assignment, retreat to the command station at normal speed, remain vulnerable during retreat and defend on arrival. Replacement command ships are buildable but expensive and slow relative to ordinary combat ships. Keep the lost fleet slot visible in the interface and notify the player. If it carried the destabilizer, drop the device at its destruction position.
 
 ### 5.5 Civilian control
 
-Miners and constructors are directly selectable, movable and manually assigned jobs. They do not follow command frigates. They can be attacked and destroyed. A miner docks at a selected unoccupied deposit and generates energy continuously; one miner per deposit; no hauling trips. Moving or losing the miner stops production immediately. A constructor travels to a valid placed project, initiates it, and may immediately leave; the project proceeds autonomously with cosmetic construction effects. A constructor may initiate another project while prior projects continue. No limit on simultaneous active structure projects beyond valid placement and energy availability. No requirement for multiple constructors to accelerate one project.
+Miners and constructors are directly selectable, movable and manually assigned jobs. They do not follow command ships. They can be attacked and destroyed. A miner docks at a selected unoccupied deposit and generates energy continuously; one miner per deposit; no hauling trips. Moving or losing the miner stops production immediately. A constructor travels to a valid placed project, initiates it, and may immediately leave; the project proceeds autonomously with cosmetic construction effects. A constructor may initiate another project while prior projects continue. No limit on simultaneous active structure projects beyond valid placement and energy availability. No requirement for multiple constructors to accelerate one project.
 
 ## 6. Defensive structures and construction
 
@@ -181,13 +181,13 @@ No research, upgrades, technology tiers or unlockable unit classes in initial sc
 
 ### 8.1 Device lifecycle
 
-The command station charges one wormhole destabilization device automatically over simulation time according to the duration preset. No energy investment is required. At full charge, announce readiness and permanently disable further wormhole relocations. A command frigate approaches the command station to collect it. Only one carrier may possess it. Mark its carrying frigate in the fleet panel, battlefield and minimap.
+The command station charges one wormhole destabilization device automatically over simulation time according to the duration preset. No energy investment is required. At full charge, announce readiness and permanently disable further wormhole relocations. A command ship approaches the command station to collect it. Only one carrier may possess it. Mark its carrying command ship in the fleet panel, battlefield and minimap.
 
-Move the frigate within the active wormhole activation radius to automatically deploy. Deployment requires a short continuous stay within range while alive. Leaving range interrupts and resets progress (recommended). Combat continues during deployment. On carrier destruction, the device remains at the destruction location as an indestructible recoverable object; another command frigate can physically collect it. No recharging and no automatic return to base. Ensure dropped locations are reachable, projecting to nearest valid position if necessary. Successful deployment collapses the portal and ends the match immediately with victory. The command station's destruction ends the match immediately with defeat; use defeat precedence if both occur on the same tick (recommended).
+Move the command ship within the active wormhole activation radius to automatically deploy. Deployment requires a short continuous stay within range while alive. Leaving range interrupts and resets progress (recommended). Combat continues during deployment. On carrier destruction, the device remains at the destruction location as an indestructible recoverable object; another command ship can physically collect it. No recharging and no automatic return to base. Ensure dropped locations are reachable, projecting to nearest valid position if necessary. Successful deployment collapses the portal and ends the match immediately with victory. The command station's destruction ends the match immediately with defeat; use defeat precedence if both occur on the same tick (recommended).
 
 ## 9. Enemy design and AI
 
-The enemy is a wave generator, not a simulated opposing economy or RTS player. It has no shipyards, construction, mining, command frigates or resource accounting. Hostile combat ships share friendly class statistics and multipliers, except for the regeneration asymmetry in Section 4.
+The enemy is a wave generator, not a simulated opposing economy or RTS player. It has no shipyards, construction, mining, command ships or resource accounting. Hostile combat ships share friendly class statistics and multipliers, except for the regeneration asymmetry in Section 4.
 
 ### 9.1 Wave director
 
@@ -209,7 +209,7 @@ Four presets (working labels Cadet, Commander, Veteran, Admiral). Adjust initial
 
 ### 10.1 Artistic style
 
-Stylized cinematic science fiction inspired by the readability and colorful energy effects of StarCraft, with dark atmospheric space. Aim for credible, detailed hard-surface spacecraft rather than cartoon-like silhouettes: actual 3D meshes, metallic materials, directional lighting, fine panel detail, restrained emissive accents and strong contrast against a predominantly black starfield. Use the player's reference screenshots as inspiration only, not copied assets. Friendly ships are angular, industrial, metallic, with blue/cyan emissive accents. Hostile ships are curved or segmented, darker, with red/violet accents. Shapes, silhouettes and markings must differentiate faction and class independently of color. Carrier hangar bays, missile banks and prominent beam emitters distinguish weapon classes. Command frigates are immediately recognizable; miners and constructors have visibly industrial equipment.
+Stylized cinematic science fiction inspired by the readability and colorful energy effects of StarCraft, with dark atmospheric space. Aim for credible, detailed hard-surface spacecraft rather than cartoon-like silhouettes: actual 3D meshes, metallic materials, directional lighting, fine panel detail, restrained emissive accents and strong contrast against a predominantly black starfield. Use the player's reference screenshots as inspiration only, not copied assets. Friendly ships are angular, industrial, metallic, with blue/cyan emissive accents. Hostile ships are curved or segmented, darker, with red/violet accents. Shapes, silhouettes and markings must differentiate faction and class independently of color. Carrier hangar bays, missile banks and prominent beam emitters distinguish weapon classes. Command ships are immediately recognizable; miners and constructors have visibly industrial equipment.
 
 Use layered starfields, subtle parallax, varied asteroid forms, soft nebulae, glowing energy deposits and restrained background planets. Terrain boundaries, build areas and silhouettes must remain readable. Decorative objects have no gameplay effect.
 
@@ -220,7 +220,7 @@ Use layered starfields, subtle parallax, varied asteroid forms, soft nebulae, gl
 | Carrier attack | Persistent recognizable winged fighter squadron escorts the carrier while idle/moving, transits to the carrier's current target, swarms it with staggered luminous blaster strikes, and returns when no target remains; slower readable flight loops with smooth individual variation, gradual transit acceleration/braking and banking |
 | Missile cruiser / battery | Recognizable salvos, curved exhaust trails, explosive impacts |
 | Destroyer / beam turret | Solid phaser-like energy beams, emitter glow and concentrated impact flashes |
-| Command frigate attack | Modest energy bolts |
+| Command ship attack | Modest energy bolts |
 | Shield hit | Brief visible shield bubble/ripple; distinguish hull impacts |
 | Hull damage | Sparks, localized damage effects and critical-state cues |
 | Destruction | Flash, explosion, fading debris; larger effect for major assets |
@@ -256,7 +256,7 @@ The battlefield occupies most of the screen. Persistent top HUD shows energy sto
 
 ### 11.2 Fleet display
 
-Show Alpha, Bravo, Charlie as stable command slots, including empty, building, operational or command-lost state. Display frigate shield/hull, status (moving, defending, engaged, etc.), occupied/reserved capacity and class counts. Expanded roster lists individual subordinate ships grouped by class with shield/hull bars and reinforcement status. Show device possession. Single selection selects frigate; double-click/tap focuses camera. Selecting a subordinate for inspection does not enable individual movement orders. Include unassigned ships at base in an appropriate roster.
+Show Alpha, Bravo, Charlie as stable command slots, including empty, building, operational or command-lost state. Display command ship shield/hull, status (moving, defending, engaged, etc.), occupied/reserved capacity and class counts. Expanded roster lists individual subordinate ships grouped by class with shield/hull bars and reinforcement status. Show device possession. Single selection selects command ship; double-click/tap focuses camera. Selecting a subordinate for inspection does not enable individual movement orders. Include unassigned ships at base in an appropriate roster.
 
 ### 11.3 Selection and orders
 
@@ -292,13 +292,13 @@ Minimap shows all terrain, deposits, friendly units and structures, detected ene
 
 ### 11.6 Learning assistance
 
-Provide contextual tooltips and a short optional tutorial explaining movement of command frigates, combat triangle, mining and energy flow, construction, regeneration and device delivery. No separate campaign or long mandatory tutorial. Include an in-game triangle reference. Player can skip or replay tutorial assistance.
+Provide contextual tooltips and a short optional tutorial explaining movement of command ships, combat triangle, mining and energy flow, construction, regeneration and device delivery. No separate campaign or long mandatory tutorial. Include an in-game triangle reference. Player can skip or replay tutorial assistance.
 
 ## 12. Game modes, replayability and persistence
 
 One initial mode: defend and destroy the wormhole. Main menu offers 10/20/30-minute presets, four difficulty presets, visible editable seed and map preview/regeneration. Battlefield archetype selection may be offered as optional generator preference; random archetype is default. Seed plus generation settings reproduces map; independent derived random streams for terrain, encounters and cosmetics prevent visual changes from modifying wave composition. Encounter generation is reproducible with the same seed/settings and algorithm version; full cross-browser deterministic replay is not required.
 
-At victory or defeat freeze gameplay and show overlay with duration, waves defeated, hostile losses, friendly losses by class, frigates lost, structures built/destroyed, peak and total energy produced, energy spent by consumer category, shortage time, class-specific combat contribution, difficulty and seed. Allow inspecting the frozen battlefield, restarting or returning to menu. Results should count real simulation events, not fabricated metrics.
+At victory or defeat freeze gameplay and show overlay with duration, waves defeated, hostile losses, friendly losses by class, command ships lost, structures built/destroyed, peak and total energy produced, energy spent by consumer category, shortage time, class-specific combat contribution, difficulty and seed. Allow inspecting the frozen battlefield, restarting or returning to menu. Results should count real simulation events, not fabricated metrics.
 
 Use localStorage for settings, preferred match configuration, tutorial completion and previous match results. Limit history (initial recommendation: 20 results), tolerate unavailable or corrupt storage, and version persisted data. No active-match save/resume, accounts, online leaderboard or persistent upgrades. No backend. Future expansion ideas (not tasks): endless mode, campaigns, technology, new ship classes, custom maps, cooperative play.
 
@@ -387,9 +387,9 @@ Deliver a directly servable application with modular JavaScript, pinned local Th
 
 #### Milestone 2 — Combat sandbox
 
-Deliver three combat classes for each faction plus friendly command frigate, recognizable heading-aware 3D models, spawn/position/reset controls and controlled duels and fleet battles. Implement nearest eligible targeting, counter matrix, shield/hull damage, destruction and combat events. Show cosmetic fighter swarms, missile salvos, beams, shield impacts, engine trails and explosions from this milestone onward. Test neutral/same-class damage, each intended counter, equal-cost engagements, range differences, no friendly fire and identical results across graphical quality. Use a documented sandbox energy fixture for regeneration until the full economy is integrated.
+Deliver three combat classes for each faction plus friendly command ship, recognizable heading-aware 3D models, spawn/position/reset controls and controlled duels and fleet battles. Implement nearest eligible targeting, counter matrix, shield/hull damage, destruction and combat events. Show cosmetic fighter swarms, missile salvos, beams, shield impacts, engine trails and explosions from this milestone onward. Test neutral/same-class damage, each intended counter, equal-cost engagements, range differences, no friendly fire and identical results across graphical quality. Use a documented sandbox energy fixture for regeneration until the full economy is integrated.
 
-**Sandbox command presentation preview:** friendly combat escorts patrol slowly around a friendly command frigate when idle, follow its movement, break patrol for the existing sandbox combat behavior, and reform after combat. A persistent, selectable segmented command insignia highlights the frigate independently of labels and weapon-range overlays. Select the frigate to position the group; subordinate ships remain inspectable, with manual sandbox positioning retained for uncommanded duels and hostile fixtures. Patrol motion uses authoritative planar coordinates to avoid visual/weapon-position divergence. This is not the Milestone 4 fleet assignment, capacity, navigation, command-loss or engagement-leash system.
+**Sandbox command presentation preview:** friendly combat escorts patrol slowly around a friendly command ship when idle, follow its movement, break patrol for the existing sandbox combat behavior, and reform after combat. A persistent, selectable segmented command insignia highlights the command ship independently of labels and weapon-range overlays. Select the command ship to position the group; subordinate ships remain inspectable, with manual sandbox positioning retained for uncommanded duels and hostile fixtures. Patrol motion uses authoritative planar coordinates to avoid visual/weapon-position divergence. On reformation and membership changes, surviving escorts redistribute into evenly spaced angular patrol slots; class-specific radii are retained and expanded as needed for larger groups. Command ships use twice the ordinary visual model scale. All sandbox capital and civilian hulls, friendly and hostile, use bounded deterministic local separation with class-sized clearance; station hulls are fixed, and command ships have priority over ordinary escorts. This is local spacing, not collision damage or terrain-aware navigation. This is not the Milestone 4 fleet assignment, capacity, navigation, command-loss or engagement-leash system.
 
 **Review gate:** watch battles and assess silhouettes, visual spectacle, combat readability and initial counter balance before expanding the game.
 
@@ -401,7 +401,7 @@ Deliver seeded archetypes, dense/sparse asteroids, nebulae, energy deposits, sta
 
 #### Milestone 4 — Fleet command
 
-Deliver three command slots with ten combat ships each, autonomous following and engagement, formation compression/reformation, fleet status panel and individual ship roster. Implement command loss, survivors returning to and defending base, automatic pickup, and assigned reinforcement transit with reserved capacity and invulnerability. Use debug-spawned ships to test lifecycle before full production is available. Test narrow corridors, moving destinations, destroyed command frigates, full capacity and reassignment rules.
+Deliver three command slots with ten combat ships each, autonomous following and engagement, formation compression/reformation, fleet status panel and individual ship roster. Implement command loss, survivors returning to and defending base, automatic pickup, and assigned reinforcement transit with reserved capacity and invulnerability. Use debug-spawned ships to test lifecycle before full production is available. Test narrow corridors, moving destinations, destroyed command ships, full capacity and reassignment rules.
 
 **Review gate:** control fleets without individual combat orders, observe formation behavior and verify recovery and reinforcement workflows.
 
@@ -444,9 +444,9 @@ Use native browser modules and a dedicated test page with pass/fail reporting, r
 | Mining | One miner per deposit, docking starts income, departure/destruction stops it |
 | Construction | Range/footprint validation, initiation requires constructor arrival, progress continues after departure, multiple projects work |
 | Shipyard | Single active job, cancellation/reordering, reservation accounting, completion and assignment |
-| Fleet limits | Fourth frigate and eleventh subordinate/reservation rejected; civilian ships not counted |
+| Fleet limits | Fourth command ship and eleventh subordinate/reservation rejected; civilian ships not counted |
 | Reinforcement | Physical accelerated transit, invulnerable/noncombat until arrival; destination loss resolves to ordinary return-to-base |
-| Command loss | Survivors retreat normally, defend base, another frigate physically collects up to capacity |
+| Command loss | Survivors retreat normally, defend base, another command ship physically collects up to capacity |
 | Barriers | Correct links, hostile blocking, friendly passage, both sides fire through; destroyed endpoint removes all incident segments |
 | Navigation | No crossing dense obstacles or hostile walls; compressed formation passes corridors; replan on blockage and breach |
 | Generation | Same seed/settings reproduces map; multiple portal sites reachable; protected/exposed yield target; bounded retries; test at least 1,000 seeds where practical |
@@ -463,7 +463,7 @@ Use native browser modules and a dedicated test page with pass/fail reporting, r
 
 ### 14.2 Manual and scenario acceptance
 
-Verify a complete normal match from menu to results without developer commands. Test a naturally fortified map, a multi-front map exceeding available frigates, an exposed mining attack, a barrier breach, an unfavorable combat composition, energy shortage during regeneration, command frigate destruction and replacement, wormhole relocation and a failed device delivery followed by recovery. Verify the tutorial and all three speed settings. Check landscape touch play on representative Android/iOS devices and mouse/keyboard desktop; test resizing, hidden tab, audio initialization and graphics quality changes. Confirm actual visual spectacle is present early and at final integration: fighter swarms, salvos, beams, shield ripples, explosions and faction distinction. Record measured performance and unresolved defects rather than claiming targets are met without testing.
+Verify a complete normal match from menu to results without developer commands. Test a naturally fortified map, a multi-front map exceeding available command ships, an exposed mining attack, a barrier breach, an unfavorable combat composition, energy shortage during regeneration, command ship destruction and replacement, wormhole relocation and a failed device delivery followed by recovery. Verify the tutorial and all three speed settings. Check landscape touch play on representative Android/iOS devices and mouse/keyboard desktop; test resizing, hidden tab, audio initialization and graphics quality changes. Confirm actual visual spectacle is present early and at final integration: fighter swarms, salvos, beams, shield ripples, explosions and faction distinction. Record measured performance and unresolved defects rather than claiming targets are met without testing.
 
 ### 14.3 Scope boundaries
 
@@ -471,7 +471,7 @@ No free-flight 3D gameplay, tactical camera rotation, carrier tower, research, u
 
 ## 15. Initial tuning and implementation assumptions
 
-These values are starting points selected to make the initial game implementable, not user-validated balance. The accepted three-frigate/ten-slot limits and 2×/0.75× multipliers are explicit defaults. Adjust provisional values through sandbox and full-match testing, keeping the intended relative roles and design constraints. Record meaningful changes.
+These values are starting points selected to make the initial game implementable, not user-validated balance. The accepted three-command ship/ten-slot limits and 2×/0.75× multipliers are explicit defaults. Adjust provisional values through sandbox and full-match testing, keeping the intended relative roles and design constraints. Record meaningful changes.
 
 ### 15.1 Baseline combat and asset configuration
 
@@ -482,7 +482,7 @@ World distance units are arbitrary; time is simulation seconds. DPS below is des
 | Light carrier | 80 | 120 | 15 / 0.5 | 30 | 480 | 780 | 1,500 | 10 |
 | Missile cruiser | 120 | 180 | 30 / 2 | 15 | 660 | 900 | 1,500 | 10 |
 | Destroyer | 160 | 240 | 22 / 1 | 22 | 330 | 690 | 1,500 | 10 |
-| Command frigate | 200 | 300 | 8 / 1 | 8 | 390 | 900 | 6,000 | 30 |
+| Command ship | 200 | 300 | 8 / 1 | 8 | 390 | 900 | 6,000 | 30 |
 | Miner | 40 | 100 | — | 0 | 0 | 160 | 1,000 | 8 |
 | Constructor | 40 | 100 | — | 0 | 0 | 160 | 1,000 | 8 |
 
@@ -550,8 +550,8 @@ The following clarify otherwise unspecified implementation details. They are rec
 | A4 | Unfinished structures are vulnerable after initiation; use a minimum nonzero initial hull and increase maximum available HP with progress, without granting free healing of damage. Pending placement before arrival reserves footprint only. |
 | A5 | Cancelling a queued job that has consumed no energy has no refund; active cancellation and dismantling refund 25% actually spent. Reordering changes pending jobs, not the active job; explicitly cancel active job if desired. |
 | A6 | Storage capacity loss discards excess energy; no separate maximum discharge rate. Base income and storage remain until command station loss. |
-| A7 | Newly produced assigned ships are invulnerable and cannot attack until arrival, and reserve a fleet slot. Target frigate loss cancels immunity and redirects to base. Returning survivors are vulnerable. Base pickup is automatic in stable arrival/ID order until capacity; manual transfers near a shipyard remain possible. |
-| A8 | Command frigate movement orders take precedence over chasing. Followers may fire while traveling but must remain cohesive; unassigned ships return to base before local defense. |
+| A7 | Newly produced assigned ships are invulnerable and cannot attack until arrival, and reserve a fleet slot. Target command ship loss cancels immunity and redirects to base. Returning survivors are vulnerable. Base pickup is automatic in stable arrival/ID order until capacity; manual transfers near a shipyard remain possible. |
+| A8 | Command ship movement orders take precedence over chasing. Followers may fire while traveling but must remain cohesive; unassigned ships return to base before local defense. |
 | A9 | Device is indestructible; leaving deployment range resets progress; no additional relocation once charged; simultaneous defeat takes precedence. |
 | A10 | Recovery starts only after complete wave elimination. Deliberately retaining an enemy may permit economic accumulation or charge progress; assess exploit in testing, without changing this accepted rule unilaterally. |
 | A11 | Initial resource distribution uses a measurable protected starting region defined by generator archetype, not actual player-built walls. Target 50% mining yield outside it (suggest 45–55% validation tolerance). |
