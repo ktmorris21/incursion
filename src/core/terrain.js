@@ -1,7 +1,7 @@
 import {CONFIG,COMBAT} from '../config.js';
 import {clamp,seededRandom} from './math.js';
 export const ARCHETYPES=['Bastion','Frontier','Crossroads','Labyrinth'];
-export const CELL=50;
+export const CELL=CONFIG.sector.cell;
 export const dimensions=map=>({width:map?.width??CONFIG.world.width,height:map?.height??CONFIG.world.height});
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const sq=(x)=>x*x;
@@ -125,7 +125,7 @@ function ribbon(rng,x,y,length,width,angle,bend=.18){
 }
 function candidate(seed,archetype,attempt){
  const rng=seededRandom(seed+'|'+archetype+'|'+attempt),j=(v,n)=>v+(rng()-.5)*2*n;
- const width=5700,height=5700,cut=j(2900,140),base={x:780,y:j(2850,180)},safeRadius=1100;
+ const {width,height}=CONFIG.sector,cut=j(2900,140),base={x:780,y:j(2850,180)},safeRadius=1100;
  const cx=base.x+180,cy=base.y;
  const starts=[base,{x:cx,y:cy},...['carrier','missile','destroyer'].map((kind,i)=>({x:cx+CONFIG.patrol.radii[kind]*Math.cos(i*2*Math.PI/3),y:cy+CONFIG.patrol.radii[kind]*Math.sin(i*2*Math.PI/3)})),{x:base.x-80,y:base.y-260},{x:base.x-80,y:base.y+260}];
  const deposits=[{x:430,y:base.y-520,yield:18},{x:430,y:base.y+520,yield:22},{x:4550,y:j(950,160),yield:19},{x:4550,y:j(4750,160),yield:21}];
