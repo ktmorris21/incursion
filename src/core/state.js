@@ -1,9 +1,10 @@
-import {CONFIG, LABELS} from '../config.js';
+import {CONFIG, LABELS, COMBAT} from '../config.js';
 import {clamp,lerp,lerpAngle} from './math.js';
+import {initCombat,combatStep} from './combat.js';
 
 // The authoritative state contains plain records only; no renderer, input or DOM references.
 export function createState(seed=CONFIG.demo.seed) {
-  return {seed:String(seed), tick:0,time:0, nextId:1, entities:[], events:[]};
+  return {seed:String(seed), tick:0,time:0, nextId:1, entities:[], events:[], sandbox:false, engaged:false, energy:COMBAT.sandboxEnergy, energyFactor:1, outcome:null};
 }
 export function spawn(state, data) {
   if (!Object.hasOwn(LABELS,data.kind) || !['friendly','hostile'].includes(data.faction)) throw new TypeError('Invalid entity class or faction');
@@ -11,21 +12,24 @@ export function spawn(state, data) {
   if (!Number.isFinite(data.x)||!Number.isFinite(data.y)||!Number.isFinite(data.heading??0)) throw new TypeError('Non-finite pose');
   const x=clamp(data.x,0,CONFIG.world.width),y=clamp(data.y,0,CONFIG.world.height),heading=data.heading??0;
   const e={id:state.nextId++,kind:data.kind,faction:data.faction,label:data.label??LABELS[data.kind],x,y,heading,prevX:x,prevY:y,prevHeading:heading,motion:data.motion?{...data.motion}:null};
-  state.entities.push(e);state.events.push({type:'spawned',id:e.id,tick:state.tick});return e;
+  initCombat(e);state.entities.push(e);state.events.push({type:'spawned',id:e.id,tick:state.tick});return e;
 }
 export function destroy(state,id) {
   const i=state.entities.findIndex(e=>e.id===id);if(i<0)return false;
-  state.entities.splice(i,1);state.events.push({type:'destroyed',id,tick:state.tick});return true;
+  const e=state.entities[i];state.entities.splice(i,1);state.events.push({type:'destroyed',id,x:e.x,y:e.y,kind:e.kind,faction:e.faction,tick:state.tick});return true;
 }
 export function drainEvents(state) {return state.events.splice(0);}
 export function applyCommand(state, command, paused=false) {
   if(paused)return {ok:false,reason:'Simulation paused'};
   if(command?.type==='spawn') {try{return {ok:true,id:spawn(state,command.data).id};}catch(e){return {ok:false,reason:e.message};}}
   if(command?.type==='destroy')return {ok:destroy(state,command.id)};
-  return {ok:false,reason:'Unknown foundation command'};
+  if(command?.type==='engage'&&state.sandbox){if(!state.entities.some(e=>e.faction==='friendly')||!state.entities.some(e=>e.faction==='hostile'))return {ok:false,reason:'Spawn both factions first'};state.engaged=true;state.outcome=null;return {ok:true};}
+ if(command?.type==='position'&&state.sandbox){const e=state.entities.find(e=>e.id===command.id);if(!e||e.kind==='station'||!Number.isFinite(command.x)||!Number.isFinite(command.y))return {ok:false,reason:'Invalid position'};e.destination={x:clamp(command.x,0,CONFIG.world.width),y:clamp(command.y,0,CONFIG.world.height)};return {ok:true};}
+ return {ok:false,reason:'Unknown sandbox command'};
 }
 export function step(state,dt=1/CONFIG.clock.hz) {
   state.tick++;state.time=state.tick/CONFIG.clock.hz;
+  if(state.sandbox){for(const e of state.entities){e.prevX=e.x;e.prevY=e.y;e.prevHeading=e.heading;}combatStep(state,dt,destroy);return;}
   // A deterministic, non-gameplay animation fixture used to verify interpolation.
   for(const e of state.entities){
     e.prevX=e.x;e.prevY=e.y;e.prevHeading=e.heading;
@@ -56,4 +60,13 @@ export function makeDemo(seed=CONFIG.demo.seed) {
   const m={cx:680,cy:620,rx:105,ry:65,phase:0.8,rate:CONFIG.demo.orbitSpeed};
   add('frigate','friendly',m.cx+Math.cos(m.phase)*m.rx,m.cy+Math.sin(m.phase)*m.ry,Math.atan2(Math.cos(m.phase)*m.ry,-Math.sin(m.phase)*m.rx),'Camera / motion fixture',m);
   drainEvents(s);return s;
+}
+
+export function makeBattle(preset='fleet',close=false){
+ const s=createState('combat-'+preset);s.sandbox=true;
+ const pair={carrier:['carrier','missile'],missile:['missile','destroyer'],destroyer:['destroyer','carrier']},gap=close?90:440;
+ const add=(kind,faction,x,y)=>spawn(s,{kind,faction,x,y,heading:faction==='friendly'?0:Math.PI});
+ if(Object.hasOwn(pair,preset)){add(pair[preset][0],'friendly',900-gap/2,900);add(pair[preset][1],'hostile',900+gap/2,900);}
+ else if(preset==='fleet'){for(const faction of ['friendly','hostile']){const sign=faction==='friendly'?-1:1;for(let i=0;i<6;i++)add(['carrier','missile','destroyer'][i%3],faction,900+sign*(220+(i%2)*64),900+(Math.floor(i/2)-1)*125);}add('frigate','friendly',525,900);}
+ drainEvents(s);return s;
 }
