@@ -81,7 +81,7 @@ export function makeBattle(preset='fleet',close=false){
 export function makeTerrainBattle(seed='incursion-01',archetype='Auto',preview=true){
  const s=createState(seed);s.sandbox=true;s.map=generateMap(seed,archetype);s.preview=preview;
  const {base,portals}=s.map;
- const add=(kind,faction,x,y,heading=0)=>{const p=nearestOpen(s.map,{x,y},clearance({kind}));return spawn(s,{kind,faction,...p,heading});};
+ const add=(kind,faction,x,y,heading=0)=>{const p=nearestOpen(s.map,{x,y},clearance({kind}));if(!p)throw Error('No open spawn point');return spawn(s,{kind,faction,...p,heading});};
  add('station','friendly',base.x,base.y);const cx=base.x+180,cy=base.y;
  add('frigate','friendly',cx,cy);
  for(let i=0;i<3;i++){const kind=['carrier','missile','destroyer'][i],a=i*2*Math.PI/3,r=CONFIG.patrol.radii[kind];add(kind,'friendly',cx+r*Math.cos(a),cy+r*Math.sin(a),a+Math.PI/2);}
