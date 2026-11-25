@@ -49,7 +49,7 @@ export class CombatEffects {
   }
  }
  update(time,items,quality='high'){
-  const poses=new Map(items.map(i=>[i.id,i.pose]));
+  const poses=new Map(items.map(i=>[i.id,i.pose])),kinds=new Map(items.map(i=>[i.id,i.e.kind]));
   for(let i=this.events.length-1;i>=0;i--){
    const f=this.events[i],e=f.e,t=time-f.start;
    if(t>=f.duration){this.root.remove(f.g);this.events.splice(i,1);continue;}
@@ -79,7 +79,7 @@ export class CombatEffects {
    }
    const fade=clamp((t-f.travel)/.32),show=t>=f.travel;
    f.impact.visible=show;f.impact.position.copy(b);f.impact.scale.setScalar(3+12*Math.sin(Math.PI*fade)*(1-fade*.45));
-   if(f.shield){f.shield.visible=f.ripple.visible=show;f.shield.position.copy(b);f.shield.scale.set(24+fade*5,12+fade*4,24+fade*5);f.ripple.position.copy(b);f.ripple.scale.setScalar(12+25*fade);}
+   if(f.shield){const scale=kinds.get(e.id)==='frigate'?2:1;f.shield.visible=f.ripple.visible=show;f.shield.position.copy(b);f.shield.scale.set((24+fade*5)*scale,(12+fade*4)*scale,(24+fade*5)*scale);f.ripple.position.copy(b);f.ripple.scale.setScalar((12+25*fade)*scale);}
   }
   this.updateSquadrons(time,items);
   const moving=new Set();
@@ -88,7 +88,7 @@ export class CombatEffects {
    if(e.kind==='station'||speed<2)continue;
    moving.add(id);let trail=this.trails.get(id);
    if(!trail){const g=new T.Group(),c=(colors[e.faction]??colors.friendly)[0];this.root.add(g);trail={g,rods:[this.rod(g,c,.25),this.rod(g,c,.78)]};this.trails.set(id,trail);}
-   const dir=new T.Vector3(Math.cos(pose.heading),0,Math.sin(pose.heading)),start=new T.Vector3(pose.x,2.5,pose.y).addScaledVector(dir,-23);
+   const dir=new T.Vector3(Math.cos(pose.heading),0,Math.sin(pose.heading)),start=new T.Vector3(pose.x,2.5,pose.y).addScaledVector(dir,e.kind==='frigate'?-46:-23);
    this.segment(trail.rods[0],start,start.clone().addScaledVector(dir,-24),3.1);this.segment(trail.rods[1],start,start.clone().addScaledVector(dir,-11),1.5);
   }
   for(const [id,t] of this.trails)if(!moving.has(id)){this.root.remove(t.g);this.trails.delete(id);}
