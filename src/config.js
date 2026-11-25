@@ -2,7 +2,7 @@
 export const CONFIG = Object.freeze({
   world: Object.freeze({width: 1800, height: 1800}),
   clock: Object.freeze({hz: 20, speeds: Object.freeze([0.5, 1, 2]), maxFrameSeconds: 0.25, maxStepsPerFrame: 10}),
-  camera: Object.freeze({compression: 0.84, minZoom: 0.22, maxZoom: 3, keyboardPixelsPerSecond: 500, wheelSensitivity: 0.0014, dragThreshold: 6, fitPadding: 84}),
+  camera: Object.freeze({compression: 0.84, minZoom: 0.22, maxZoom: 3, keyboardPixelsPerSecond: 500, wheelSensitivity: 0.0014, dragThreshold: 6, fitPadding: 84, sandboxFitMaxZoom: 1.0}),
   visuals: Object.freeze({shipScale: 0.52, headingFrames: 36, spritePixelsPerUnit: 2, maxDpr: 2, backgroundSeed: 7149, starCounts: Object.freeze([260, 120, 42]), qualityDpr: Object.freeze({low: 1, medium: 1.5, high: 2}), defaultQuality: 'auto'}),
   demo: Object.freeze({seed: 'foundation-01', orbitSpeed: 0.095, showLabels: true})
 });
