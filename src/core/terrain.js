@@ -1,4 +1,4 @@
-import {CONFIG} from '../config.js';
+import {CONFIG,COMBAT} from '../config.js';
 import {clamp,seededRandom} from './math.js';
 export const ARCHETYPES=['Bastion','Frontier','Crossroads','Labyrinth'];
 export const CELL=20,W=CONFIG.world.width,H=CONFIG.world.height,N=W/CELL,M=H/CELL;
@@ -121,5 +121,5 @@ export function generateMap(seed='incursion-01',archetype='Auto'){
 }
 export function detected(state,e){
  if(!state.map||e.faction==='friendly'||state.preview)return true;
- return state.entities.some(a=>a.faction==='friendly'&&a.hull>0&&dist(a,e)<=a.sensorRange*sensorFactor(state.map,a));
+ return state.entities.some(a=>a.faction==='friendly'&&a.hull>0&&dist(a,e)<=COMBAT.classes[a.kind].sensor*sensorFactor(state.map,a));
 }
