@@ -1,7 +1,7 @@
 import {CONFIG, LABELS, COMBAT} from '../config.js';
 import {clamp,lerp,lerpAngle} from './math.js';
 import {initCombat,combatStep,isEscort} from './combat.js';
-import {generateMap,walkable,clearance,nearestOpen,findPath,dimensions} from './terrain.js';
+import {generateMap,walkable,clearance,nearestOpen,findPath,dimensions,portalFormation} from './terrain.js';
 
 // The authoritative state contains plain records only; no renderer, input or DOM references.
 export function createState(seed=CONFIG.demo.seed) {
@@ -86,6 +86,6 @@ export function makeTerrainBattle(seed='incursion-01',archetype='Auto',preview=t
  add('frigate','friendly',cx,cy);
  for(let i=0;i<3;i++){const kind=['carrier','missile','destroyer'][i],a=i*2*Math.PI/3,r=CONFIG.patrol.radii[kind];add(kind,'friendly',cx+r*Math.cos(a),cy+r*Math.sin(a),a+Math.PI/2);}
  add('miner','friendly',base.x-80,base.y-260);add('constructor','friendly',base.x-80,base.y+260);
- const p=portals[s.map.activePortal];for(let i=0;i<3;i++)add(['carrier','missile','destroyer'][i],'hostile',p.x,p.y+(i-1)*100,Math.PI);
+ const p=portals[s.map.activePortal],heading=Math.atan2(base.y-p.y,base.x-p.x);portalFormation(s.map,p).forEach((q,i)=>add(['carrier','missile','destroyer'][i],'hostile',q.x,q.y,heading));
  drainEvents(s);return s;
 }
