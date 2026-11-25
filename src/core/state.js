@@ -1,7 +1,7 @@
 import {CONFIG, LABELS, COMBAT} from '../config.js';
 import {clamp,lerp,lerpAngle} from './math.js';
 import {initCombat,combatStep,isEscort} from './combat.js';
-import {generateMap,walkable,clearance,nearestOpen,findPath} from './terrain.js';
+import {generateMap,walkable,clearance,nearestOpen,findPath,dimensions} from './terrain.js';
 
 // The authoritative state contains plain records only; no renderer, input or DOM references.
 export function createState(seed=CONFIG.demo.seed) {
@@ -11,7 +11,7 @@ export function spawn(state, data) {
   if (!Object.hasOwn(LABELS,data.kind) || !['friendly','hostile'].includes(data.faction)) throw new TypeError('Invalid entity class or faction');
   if (data.faction==='hostile' && !['carrier','missile','destroyer'].includes(data.kind)) throw new TypeError('Unsupported hostile class');
   if (!Number.isFinite(data.x)||!Number.isFinite(data.y)||!Number.isFinite(data.heading??0)) throw new TypeError('Non-finite pose');
-  const x=clamp(data.x,0,CONFIG.world.width),y=clamp(data.y,0,CONFIG.world.height),heading=data.heading??0;
+  const {width,height}=dimensions(state.map),x=clamp(data.x,0,width),y=clamp(data.y,0,height),heading=data.heading??0;
   const e={id:state.nextId++,kind:data.kind,faction:data.faction,label:data.label??LABELS[data.kind],x,y,heading,prevX:x,prevY:y,prevHeading:heading,motion:data.motion?{...data.motion}:null};
   if(state.map&&!walkable(state.map,e,clearance(e)))throw new TypeError('Spawn point obstructed by terrain or map edge');
   initCombat(e);state.entities.push(e);state.events.push({type:'spawned',id:e.id,tick:state.tick});return e;
@@ -30,7 +30,7 @@ export function applyCommand(state, command, paused=false) {
   if(command?.type==='spawn') {try{return {ok:true,id:spawn(state,command.data).id};}catch(e){return {ok:false,reason:e.message};}}
   if(command?.type==='destroy')return {ok:destroy(state,command.id)};
   if(command?.type==='engage'&&state.sandbox){if(!state.entities.some(e=>e.faction==='friendly')||!state.entities.some(e=>e.faction==='hostile'))return {ok:false,reason:'Spawn both factions first'};state.engaged=true;state.outcome=null;return {ok:true};}
- if(command?.type==='position'&&state.sandbox){const e=state.entities.find(e=>e.id===command.id);if(!canPosition(state,e)||!Number.isFinite(command.x)||!Number.isFinite(command.y))return {ok:false,reason:e&&isEscort(e)?'Move the command ship; its escorts follow automatically.':'Invalid position'};const dest={x:clamp(command.x,0,CONFIG.world.width),y:clamp(command.y,0,CONFIG.world.height)};if(state.map){if(!walkable(state.map,dest,clearance(e)))return {ok:false,reason:'Destination obstructed by dense terrain or map edge'};const points=findPath(state.map,e,dest,clearance(e));if(!points)return {ok:false,reason:'No navigable route'};e.route={goal:dest,points,tick:state.tick};}e.destination=dest;return {ok:true};}
+ if(command?.type==='position'&&state.sandbox){const e=state.entities.find(e=>e.id===command.id);if(!canPosition(state,e)||!Number.isFinite(command.x)||!Number.isFinite(command.y))return {ok:false,reason:e&&isEscort(e)?'Move the command ship; its escorts follow automatically.':'Invalid position'};const {width,height}=dimensions(state.map),dest={x:clamp(command.x,0,width),y:clamp(command.y,0,height)};if(state.map){if(!walkable(state.map,dest,clearance(e)))return {ok:false,reason:'Destination obstructed by dense terrain or map edge'};const points=findPath(state.map,e,dest,clearance(e));if(!points)return {ok:false,reason:'No navigable route'};e.route={goal:dest,points,tick:state.tick};}e.destination=dest;return {ok:true};}
  return {ok:false,reason:'Unknown sandbox command'};
 }
 export function step(state,dt=1/CONFIG.clock.hz) {
