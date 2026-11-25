@@ -1,11 +1,11 @@
 import * as T from '../vendor/three.module.js';
 import {CONFIG,COMBAT} from '../src/config.js';
-import {createState,makeBattle,makeDemo,spawn,destroy,drainEvents,step,poseAt,applyCommand} from '../src/core/state.js';
+import {createState,makeBattle,makeDemo,spawn,destroy,drainEvents,step,poseAt,applyCommand,canPosition} from '../src/core/state.js';
 import {FixedClock} from '../src/core/clock.js';
 import {seededRandom} from '../src/core/math.js';
 import {Camera,canvasSize,resizeCanvas,depthSort,headingFrame} from '../src/rendering/projection.js';
 import {SpriteRegistry} from '../src/rendering/sprites.js';
-import {BattlefieldRenderer,PresentationMotion} from '../src/rendering/renderer.js';
+import {BattlefieldRenderer,PresentationMotion,CommandMarkers} from '../src/rendering/renderer.js';
 import {ModelRegistry} from '../src/rendering/models.js';
 import {CombatEffects} from '../src/rendering/effects.js';
 export function assert(ok,message='Assertion failed'){if(!ok)throw Error(message);}
@@ -175,6 +175,34 @@ coreTests.push(
    assert(radii.some(r=>Math.abs(r[0]-r[1])>3),'not identical orbital tracks');
    const snapshot=squad.fighters.map(f=>[f.craft.position.toArray(),f.craft.quaternion.toArray()]);fx.update(12,items());eq(squad.fighters.map(f=>[f.craft.position.toArray(),f.craft.quaternion.toArray()]),snapshot);
   }finally{fx.dispose();}
+ }]
+);
+coreTests.push(
+ ['Command patrol: slow, spaced escorts, command movement and battle transition',()=>{
+  const s=makeBattle(),f=s.entities.find(e=>e.kind==='frigate'),escorts=s.entities.filter(e=>e.faction==='friendly'&&e!==f),hostile=s.entities.find(e=>e.faction==='hostile');
+  const start=escorts.map(e=>({x:e.x,y:e.y})),h={x:hostile.x,y:hostile.y};
+  assert(canPosition(s,f));assert(!canPosition(s,escorts[0]));assert(!applyCommand(s,{type:'position',id:escorts[0].id,x:700,y:900}).ok);
+  for(let i=0;i<100;i++)step(s);
+  escorts.forEach((e,i)=>{near(Math.hypot(e.x-f.x,e.y-f.y),CONFIG.patrol.radii[e.kind],.01);assert(Math.hypot(e.x-start[i].x,e.y-start[i].y)>70);assert(Math.hypot(e.x-e.prevX,e.y-e.prevY)/.05<28);eq(e.patrol.leaderId,f.id);});
+  near(hostile.x,h.x);near(hostile.y,h.y);
+  assert(applyCommand(s,{type:'position',id:f.id,x:690,y:900}).ok);
+  for(let i=0;i<150;i++)step(s);
+  near(f.x,690);escorts.forEach(e=>near(Math.hypot(e.x-f.x,e.y-f.y),CONFIG.patrol.radii[e.kind],.1));
+  assert(applyCommand(s,{type:'engage'}).ok);step(s);assert(escorts.every(e=>!e.patrol.active));
+  s.engaged=false;step(s);assert(escorts.every(e=>e.patrol.active));
+  destroy(s,f.id);step(s);assert(escorts.every(e=>e.patrol===null));assert(canPosition(s,escorts[0]));
+ }],
+ ['Command patrol: deterministic with multiple leaders, civilians independent and world bounds',()=>{
+  const run=fps=>{const s=makeBattle('empty'),a=spawn(s,{kind:'frigate',faction:'friendly',x:35,y:35}),b=spawn(s,{kind:'frigate',faction:'friendly',x:1200,y:1200}),e=spawn(s,{kind:'carrier',faction:'friendly',x:35,y:35}),m=spawn(s,{kind:'miner',faction:'friendly',x:50,y:50}),c=new FixedClock(dt=>step(s,dt));for(let i=0;i<fps*10;i++)c.advance(1/fps);eq(e.patrol.leaderId,a.id);eq([m.x,m.y],[50,50]);assert(e.x>=0&&e.y>=0&&e.x<=1800&&e.y<=1800);destroy(s,a.id);step(s);eq(e.patrol.leaderId,b.id);return s;};
+  eq(run(30),run(144));
+ }],
+ ['3D command insignia: persistent, selectable, selected state and cleanup',()=>{
+  const scene=new T.Scene(),markers=new CommandMarkers(scene),s=makeBattle(),f=s.entities.find(e=>e.kind==='frigate'),items=()=>s.entities.map(e=>({id:e.id,e,pose:poseAt(e,1)})),before=JSON.stringify(s);
+  try{markers.update(items(),null,1);eq(markers.items.size,1);const g=markers.items.get(f.id);eq(g.children.length,9);eq(g.userData.entityId,f.id);
+   const ray=new T.Raycaster(new T.Vector3(f.x+41*Math.cos(.6),100,f.y-41*Math.sin(.6)),new T.Vector3(0,-1,0));assert(ray.intersectObject(g,true).length>0,'ring must be pickable');
+   markers.update(items(),f.id,.3);eq(markers.items.get(f.id),g);assert(g.scale.x>1);eq(g.children[1].material,markers.selected);eq(JSON.stringify(s),before);
+   destroy(s,f.id);markers.update(items(),null,1);eq(markers.items.size,0);assert(!g.parent);markers.clear();eq(markers.root.children.length,0);
+  }finally{markers.dispose();}eq(scene.children.length,0);
  }]
 );
 export const browserTests=[
