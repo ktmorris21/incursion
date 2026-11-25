@@ -1,7 +1,9 @@
 import * as T from '../../vendor/three.module.js';
 // Cosmetic only: damage is calculated by the simulation, never by these meshes.
 const Y=new T.Vector3(0,1,0),clamp=t=>Math.max(0,Math.min(1,t)),MAX=160;
-const FIGHTERS=6,ESCORT_RATE=.62,ATTACK_RATE=1.65,TRANSIT_SPEED=420;
+const FIGHTERS=6,ESCORT_RATE=.62,ATTACK_RATE=1.65,TRANSIT_SPEED=420,TRANSIT_ACCEL=2300;
+const angleDelta=(a,b)=>Math.atan2(Math.sin(b-a),Math.cos(b-a));
+const smooth=(a,b,t)=>a+(b-a)*(1-Math.exp(-t));
 const colors={friendly:[0x58d6ff,0xc5f6ff],hostile:[0xff507d,0xffc4aa]};
 export class CombatEffects {
  constructor(scene){
@@ -82,7 +84,8 @@ export class CombatEffects {
   this.updateSquadrons(time,items);
   const moving=new Set();
   for(const {e,pose,id} of items){
-   if(e.kind==='station'||Math.hypot(e.x-e.prevX,e.y-e.prevY)<.02)continue;
+   const speed=pose.speed??Math.hypot(e.x-e.prevX,e.y-e.prevY)*20;
+   if(e.kind==='station'||speed<2)continue;
    moving.add(id);let trail=this.trails.get(id);
    if(!trail){const g=new T.Group(),c=(colors[e.faction]??colors.friendly)[0];this.root.add(g);trail={g,rods:[this.rod(g,c,.25),this.rod(g,c,.78)]};this.trails.set(id,trail);}
    const dir=new T.Vector3(Math.cos(pose.heading),0,Math.sin(pose.heading)),start=new T.Vector3(pose.x,2.5,pose.y).addScaledVector(dir,-23);
@@ -101,9 +104,11 @@ export class CombatEffects {
    const canopy=this.mesh(craft,'debris',0x273844,1,false);canopy.position.set(1,1.6,0);canopy.scale.set(3.8,.8,2.1);
    for(const z of [-2,2]){const engine=this.mesh(craft,'ball',color,.8);engine.position.set(-6.1,.6,z);engine.scale.set(1.55,.8,.75);}
    const bolt=this.rod(g,core,.98),glow=this.rod(g,color,.4);bolt.visible=glow.visible=false;
-   fighters.push({craft,bolt,glow});
+   // Stable per-fighter parameters, no frame-by-frame random jumps.
+   const seed=(item.id??e.id)*1.618+j*2.399963;
+   fighters.push({craft,bolt,glow,seed,heading:null,bank:0,aimBlend:0});
   }
-  return {g,fighters,center:new T.Vector3(pose.x,0,pose.y),lastTime:time,phase:(item.id??e.id)*.77,attackBlend:0,targetId:null,faction:e.faction};
+  return {g,fighters,center:new T.Vector3(pose.x,0,pose.y),velocity:new T.Vector3(),heading:pose.heading,lastTime:time,phase:(item.id??e.id)*.77,attackBlend:0,targetId:null,faction:e.faction};
  }
  updateSquadrons(time,items){
   const byId=new Map(items.map(i=>[i.id,i])),live=new Set();
@@ -115,27 +120,57 @@ export class CombatEffects {
    const candidate=byId.get(e.target),target=candidate&&candidate.e.faction!==e.faction&&candidate.e.hull>0?candidate:null;
    const dt=Math.max(0,time-squad.lastTime);squad.lastTime=Math.max(time,squad.lastTime);squad.targetId=target?.id??null;
    const goal=new T.Vector3(target?.pose.x??pose.x,0,target?.pose.y??pose.y);
-   const delta=goal.clone().sub(squad.center),distance=delta.length();
-   if(distance>0&&dt>0)squad.center.addScaledVector(delta,Math.min(1,TRANSIT_SPEED*dt/distance));
+   // Acceleration-limited steering and braking envelope. Substeps keep even
+   // a slow render frame smooth, and the final small snap avoids overshoot.
+   let remaining=Math.min(dt,.5);
+   while(remaining>1e-8){
+    const h=Math.min(remaining,1/60);remaining-=h;
+    const delta=goal.clone().sub(squad.center),d=delta.length();
+    if(d<.08&&squad.velocity.length()<8){squad.center.copy(goal);squad.velocity.set(0,0,0);break;}
+    const desired=delta.multiplyScalar(d>0?Math.min(TRANSIT_SPEED,Math.sqrt(2*TRANSIT_ACCEL*d),d*13)/d:0);
+    const dv=desired.sub(squad.velocity),change=dv.length();if(change>TRANSIT_ACCEL*h)dv.multiplyScalar(TRANSIT_ACCEL*h/change);
+    squad.velocity.add(dv);const move=squad.velocity.clone().multiplyScalar(h),toGoal=goal.clone().sub(squad.center);
+    if(move.dot(toGoal)>0&&move.length()>=d&&d<TRANSIT_SPEED*h+1){squad.center.copy(goal);squad.velocity.set(0,0,0);break;}
+    squad.center.add(move);
+   }
    const onStation=!!target&&squad.center.distanceTo(goal)<45,wanted=onStation?1:0;
    squad.attackBlend+=(wanted-squad.attackBlend)*(1-Math.exp(-4*dt));
    const blend=squad.attackBlend;squad.phase+=dt*(ESCORT_RATE+(ATTACK_RATE-ESCORT_RATE)*blend);
    const heading=target?Math.atan2(target.pose.y-pose.y,target.pose.x-pose.x):pose.heading;
-   const forward=new T.Vector3(Math.cos(heading),0,Math.sin(heading)),side=new T.Vector3(-forward.z,0,forward.x);
+   squad.heading+=angleDelta(squad.heading,heading)*(1-Math.exp(-3.8*dt));
+   const forward=new T.Vector3(Math.cos(squad.heading),0,Math.sin(squad.heading)),side=new T.Vector3(-forward.z,0,forward.x);
    const attackCenter=target?new T.Vector3(target.pose.x,7,target.pose.y):null;
    for(let j=0;j<squad.fighters.length;j++){
-    const f=squad.fighters[j],angle=squad.phase+j*Math.PI*2/FIGHTERS,rx=48+22*blend,rz=39+7*blend,ca=Math.cos(angle),sa=Math.sin(angle);
-    const pos=squad.center.clone().addScaledVector(forward,rx*ca).addScaledVector(side,rz*sa);pos.y=9+3*Math.sin(angle*2+j*.6);
-    const tangent=forward.clone().multiplyScalar(-rx*sa).addScaledVector(side,rz*ca);
-    const inRange=!!attackCenter&&onStation&&pos.distanceTo(attackCenter)<90;
-    // Two distinct staggered blaster pulses per circuit.
+    const f=squad.fighters[j],k=f.seed;
+    // Smooth, bounded, individually phased harmonics give changing spacing,
+    // wider/narrower passes and gentle lateral/vertical weaving without jitter.
+    const t=time,offset=.19*Math.sin(t*.73+k)+.085*Math.sin(t*1.41+k*2.1);
+    const angle=squad.phase+j*Math.PI*2/FIGHTERS+offset;
+    const rx=48+22*blend+(5+4*blend)*Math.sin(t*.91+k*1.7),rz=39+7*blend+5*Math.sin(t*.67+k*2.3);
+    const ca=Math.cos(angle),sa=Math.sin(angle),weave=3.5*Math.sin(t*1.28+k);
+    const pos=squad.center.clone().addScaledVector(forward,rx*ca+weave).addScaledVector(side,rz*sa);
+    pos.y=9+3*Math.sin(angle*2+k)+1.8*Math.sin(t*.83+k*3);
+    // Approximate the flight tangent including the changing radius and phase.
+    const rate=ESCORT_RATE+(ATTACK_RATE-ESCORT_RATE)*blend+.19*.73*Math.cos(t*.73+k)+.085*1.41*Math.cos(t*1.41+k*2.1);
+    const drx=(5+4*blend)*.91*Math.cos(t*.91+k*1.7),drz=5*.67*Math.cos(t*.67+k*2.3);
+    const tangent=forward.clone().multiplyScalar(drx*ca-rx*sa*rate+3.5*1.28*Math.cos(t*1.28+k)).addScaledVector(side,drz*sa+rz*ca*rate).add(squad.velocity);
+    const inRange=!!attackCenter&&onStation&&pos.distanceTo(attackCenter)<100;
+    // Telegraph the two staggered shots with a gradual nose-in turn.
     const pass=((angle/(Math.PI*2))%1+1)%1,pulse=pass<.08?pass/.08:pass>=.13&&pass<.21?(pass-.13)/.08:-1;
-    const firing=inRange&&pulse>=0,aim=attackCenter?attackCenter.clone().sub(pos).normalize():tangent.clone().normalize();
-    const direction=firing?aim:tangent.normalize();
-    f.craft.position.copy(pos);f.craft.rotation.y=-Math.atan2(direction.z,direction.x);f.craft.rotation.x=.12*Math.sin(angle);
+    const firing=inRange&&pulse>=0;
+    const preparing=inRange&&(pass>.88||pass<.25);
+    f.aimBlend=smooth(f.aimBlend,preparing?1:0,dt*14);
+    const aim=attackCenter?attackCenter.clone().sub(pos).normalize():tangent.clone().normalize();
+    const travelHeading=Math.atan2(tangent.z,tangent.x),aimHeading=Math.atan2(aim.z,aim.x);
+    const desiredHeading=travelHeading+angleDelta(travelHeading,aimHeading)*f.aimBlend;
+    if(f.heading===null)f.heading=desiredHeading;
+    const turn=angleDelta(f.heading,desiredHeading);
+    f.heading+=turn*(1-Math.exp(-dt*12));
+    f.bank=smooth(f.bank,Math.max(-.24,Math.min(.24,turn*.35)),dt*7);
+    f.craft.position.copy(pos);f.craft.rotation.set(f.bank,-f.heading,.045*Math.sin(angle+k),'YXZ');
     f.bolt.visible=f.glow.visible=false;
     if(firing){
-     const muzzle=pos.clone().addScaledVector(aim,8),impact=attackCenter.clone().addScaledVector(aim,-10);
+     const muzzle=pos.clone().addScaledVector(new T.Vector3(Math.cos(f.heading),0,Math.sin(f.heading)),8),impact=attackCenter.clone().addScaledVector(aim,-10);
      const front=muzzle.clone().lerp(impact,pulse),rear=muzzle.clone().lerp(impact,Math.max(0,pulse-.27));
      this.segment(f.bolt,rear,front,1.15);this.segment(f.glow,rear,front,2.15);
     }
