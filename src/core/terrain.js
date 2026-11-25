@@ -8,10 +8,25 @@ const sq=(x)=>x*x;
 function pointSeg2(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,l=dx*dx+dy*dy,t=l?clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/l,0,1):0;return sq(p.x-a.x-t*dx)+sq(p.y-a.y-t*dy);}
 const cross=(a,b,c)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
 function intersects(a,b,c,d){return Math.max(Math.min(a.x,b.x),Math.min(c.x,d.x))<=Math.min(Math.max(a.x,b.x),Math.max(c.x,d.x))+1e-8&&Math.max(Math.min(a.y,b.y),Math.min(c.y,d.y))<=Math.min(Math.max(a.y,b.y),Math.max(c.y,d.y))+1e-8&&cross(a,b,c)*cross(a,b,d)<=0&&cross(c,d,a)*cross(c,d,b)<=0;}
+// Geometry is immutable for a generated map. Index edges by horizontal band
+// to avoid scanning every vertex of large concave banks for every grid cell.
+const EDGE_BAND=150,edgeCache=new WeakMap();
+function edgeIndex(z){
+ let idx=edgeCache.get(z);if(idx)return idx;
+ const edges=z.points.map((a,i)=>{const b=z.points[(i+1)%z.points.length];return {a,b,minX:Math.min(a.x,b.x),maxX:Math.max(a.x,b.x),minY:Math.min(a.y,b.y),maxY:Math.max(a.y,b.y)};}),bands=new Map();
+ for(const e of edges)for(let y=Math.floor(e.minY/EDGE_BAND);y<=Math.floor(e.maxY/EDGE_BAND);y++){if(!bands.has(y))bands.set(y,[]);bands.get(y).push(e);}
+ idx={edges,bands};edgeCache.set(z,idx);return idx;
+}
+function nearEdge(p,z,r){
+ const {bands}=edgeIndex(z),rr=r*r;
+ for(let y=Math.floor((p.y-r)/EDGE_BAND);y<=Math.floor((p.y+r)/EDGE_BAND);y++)for(const e of bands.get(y)??[]){
+  if(p.x<e.minX-r||p.x>e.maxX+r||p.y<e.minY-r||p.y>e.maxY+r)continue;
+  if(pointSeg2(p,e.a,e.b)<rr)return true;
+ }return false;
+}
 export function inside(p,z){
  if(!z.points)return z.r!==undefined?dist(p,z)<=z.r:sq((p.x-z.x)/z.rx)+sq((p.y-z.y)/z.ry)<=1;
- let hit=false;const v=z.points;
- for(let i=0,j=v.length-1;i<v.length;j=i++){const a=v[i],b=v[j];if((a.y>p.y)!==(b.y>p.y)&&p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x)hit=!hit;}
+ let hit=false;for(const {a,b} of edgeIndex(z).bands.get(Math.floor(p.y/EDGE_BAND))??[]){if((a.y>p.y)!==(b.y>p.y)&&p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x)hit=!hit;}
  return hit;
 }
 const bounds=z=>z.points?z.bounds??{minX:Math.min(...z.points.map(p=>p.x)),maxX:Math.max(...z.points.map(p=>p.x)),minY:Math.min(...z.points.map(p=>p.y)),maxY:Math.max(...z.points.map(p=>p.y))}:{minX:z.x-(z.r??z.rx),maxX:z.x+(z.r??z.rx),minY:z.y-(z.r??z.ry),maxY:z.y+(z.r??z.ry)};
@@ -19,12 +34,12 @@ function pointBlocked(p,z,r){
  const b=bounds(z);if(p.x<b.minX-r||p.x>b.maxX+r||p.y<b.minY-r||p.y>b.maxY+r)return false;
  if(!z.points)return dist(p,z)<(z.r??Math.max(z.rx,z.ry))+r;
  if(inside(p,z))return true;
- return z.points.some((a,i)=>pointSeg2(p,a,z.points[(i+1)%z.points.length])<r*r);
+ return nearEdge(p,z,r);
 }
 // Shared exact interior clearance for decorative rocks; prevents their meshes
 // extending beyond a terrain polygon into a neighbouring terrain type.
 export function interiorClear(p,z,r){
- return inside(p,z)&&z.points.every((a,i)=>pointSeg2(p,a,z.points[(i+1)%z.points.length])>=r*r);
+ return inside(p,z)&&!nearEdge(p,z,r);
 }
 export function polygonArea(z){let sum=0;for(let i=0;i<z.points.length;i++){const a=z.points[i],b=z.points[(i+1)%z.points.length];sum+=a.x*b.y-a.y*b.x;}return Math.abs(sum)/2;}
 export const speedFactor=(map,p)=>map?.sparse.some(z=>inside(p,z))?.65:1;
@@ -37,7 +52,7 @@ export function segmentClear(map,a,b,r=0){
  if(!walkable(map,a,r)||!walkable(map,b,r))return false;if(!map)return true;
  for(const z of map.dense){const box=bounds(z);if(Math.max(a.x,b.x)<box.minX-r||Math.min(a.x,b.x)>box.maxX+r||Math.max(a.y,b.y)<box.minY-r||Math.min(a.y,b.y)>box.maxY+r)continue;
   if(!z.points){if(pointSeg2(z,a,b)<sq(z.r+r))return false;continue;}
-  for(let i=0;i<z.points.length;i++){const c=z.points[i],d=z.points[(i+1)%z.points.length];if(intersects(a,b,c,d)||Math.min(pointSeg2(a,c,d),pointSeg2(b,c,d),pointSeg2(c,a,b),pointSeg2(d,a,b))<r*r)return false;}
+  for(const {a:c,b:d,minX,maxX,minY,maxY} of edgeIndex(z).edges){if(Math.max(a.x,b.x)<minX-r||Math.min(a.x,b.x)>maxX+r||Math.max(a.y,b.y)<minY-r||Math.min(a.y,b.y)>maxY+r)continue;if(intersects(a,b,c,d)||Math.min(pointSeg2(a,c,d),pointSeg2(b,c,d),pointSeg2(c,a,b),pointSeg2(d,a,b))<r*r)return false;}
  }return true;
 }
 const grids=new WeakMap();
@@ -105,8 +120,8 @@ export function regionsConflict(a,b,gap=TERRAIN_GAP){
  const u=bounds(a),v=bounds(b);
  if(u.maxX+gap<v.minX||v.maxX+gap<u.minX||u.maxY+gap<v.minY||v.maxY+gap<u.minY)return false;
  if(inside(a.points[0],b)||inside(b.points[0],a))return true;
- for(let i=0;i<a.points.length;i++){const p=a.points[i],q=a.points[(i+1)%a.points.length];
-  for(let j=0;j<b.points.length;j++){const r=b.points[j],t=b.points[(j+1)%b.points.length];
+ for(const e of edgeIndex(a).edges){const p=e.a,q=e.b;
+  for(const f of edgeIndex(b).edges){const r=f.a,t=f.b;if(e.maxX+gap<f.minX||f.maxX+gap<e.minX||e.maxY+gap<f.minY||f.maxY+gap<e.minY)continue;
    if(intersects(p,q,r,t)||Math.min(pointSeg2(p,r,t),pointSeg2(q,r,t),pointSeg2(r,p,q),pointSeg2(t,p,q))<gap*gap)return true;
   }
  }return false;
