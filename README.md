@@ -1,5 +1,5 @@
-# Incursion — v1.2 planar 3D foundation
+# Incursion — v1.2 planar 3D combat sandbox
 
 Serve the root using any static HTTP server (e.g. python3 -m http.server 8000). Open localhost:8000. Requires WebGL 2. Three.js r170 is vendored locally under vendor/ with MIT license. No build or CDN.
 
-Milestone 1 review: inspect the representative ships and station, drag/pinch/zoom, select, focus, pause, reset and change graphics quality. Use ?debug for diagnostics and spawn/remove fixtures. Open /tests/ for native tests; node tests/run.mjs for core tests. Combat simulation code is retained but battle controls and effects are deferred to the reopened Milestone 2. See DEVELOPMENT.md for actual validation status. Do not advance without approval.
+Milestone 2 review: default mixed fleet battle; press Engage. Select one of three counter duels (close or distant), Empty range for custom compositions, or Model review for the original artwork demo; press Load scenario. Place and position ships in the sandbox, inspect health and toggle labels, health bars and selected weapon range. Pause, pan, zoom, change speed/quality, reset and use ?debug for diagnostics. Trial movement: 270 units/s; doubled mobile attack ranges. Combat graphics are cosmetic; damage is fixed-step. Open /tests/ for native tests; node tests/run.mjs for core and CPU geometry/effect tests. See DEVELOPMENT.md for actual validation status. No terrain, fleet command, full economy or later milestones yet. Do not advance without approval.
