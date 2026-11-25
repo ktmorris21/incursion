@@ -19,7 +19,7 @@ export function destroy(state,id) {
   const e=state.entities[i];state.entities.splice(i,1);state.events.push({type:'destroyed',id,x:e.x,y:e.y,kind:e.kind,faction:e.faction,tick:state.tick});return true;
 }
 export function drainEvents(state) {return state.events.splice(0);}
-// Ordinary friendly combat ships with a command frigate are inspection-only.
+// Ordinary friendly combat ships with a command ship are inspection-only.
 // Uncommanded and hostile ships retain direct sandbox positioning for duel setup.
 export const canPosition=(state,e)=>!!e&&state.sandbox&&e.kind!=='station'&&!(isEscort(e)&&state.entities.some(p=>p.kind==='frigate'&&p.faction==='friendly'&&p.hull>0));
 export function applyCommand(state, command, paused=false) {
@@ -27,7 +27,7 @@ export function applyCommand(state, command, paused=false) {
   if(command?.type==='spawn') {try{return {ok:true,id:spawn(state,command.data).id};}catch(e){return {ok:false,reason:e.message};}}
   if(command?.type==='destroy')return {ok:destroy(state,command.id)};
   if(command?.type==='engage'&&state.sandbox){if(!state.entities.some(e=>e.faction==='friendly')||!state.entities.some(e=>e.faction==='hostile'))return {ok:false,reason:'Spawn both factions first'};state.engaged=true;state.outcome=null;return {ok:true};}
- if(command?.type==='position'&&state.sandbox){const e=state.entities.find(e=>e.id===command.id);if(!canPosition(state,e)||!Number.isFinite(command.x)||!Number.isFinite(command.y))return {ok:false,reason:e&&isEscort(e)?'Move the command frigate; its escorts follow automatically.':'Invalid position'};e.destination={x:clamp(command.x,0,CONFIG.world.width),y:clamp(command.y,0,CONFIG.world.height)};return {ok:true};}
+ if(command?.type==='position'&&state.sandbox){const e=state.entities.find(e=>e.id===command.id);if(!canPosition(state,e)||!Number.isFinite(command.x)||!Number.isFinite(command.y))return {ok:false,reason:e&&isEscort(e)?'Move the command ship; its escorts follow automatically.':'Invalid position'};e.destination={x:clamp(command.x,0,CONFIG.world.width),y:clamp(command.y,0,CONFIG.world.height)};return {ok:true};}
  return {ok:false,reason:'Unknown sandbox command'};
 }
 export function step(state,dt=1/CONFIG.clock.hz) {
@@ -51,7 +51,7 @@ export function makeDemo(seed=CONFIG.demo.seed) {
   // Representative artwork, not a match starting roster or a combat scenario.
   const add=(kind,faction,x,y,heading,label,motion=null)=>spawn(s,{kind,faction,x,y,heading,label,motion});
   add('station','friendly',550,1000,0,'Command station');
-  add('frigate','friendly',790,930,-0.25,'Alpha · command frigate');
+  add('frigate','friendly',790,930,-0.25,'Alpha · command ship');
   add('carrier','friendly',770,1190,-0.4,'Light carrier');
   add('missile','friendly',970,1060,-0.45,'Missile cruiser');
   add('destroyer','friendly',1010,830,-0.35,'Destroyer');
