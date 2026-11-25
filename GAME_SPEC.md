@@ -397,7 +397,9 @@ Deliver three combat classes for each faction plus friendly command ship, recogn
 
 Deliver seeded archetypes, dense/sparse asteroids, nebulae, energy deposits, starting area and potential wormhole sites; map validation and preview; grid A*, smoothing and local steering; fog of war, minimap and diagnostic paths. Test repeatable generation, bounded retries, resource-yield distribution, reachable portals and deposits, variable corridors and terrain penalties. Test at least 1,000 seeds where practical. Verify that projected terrain boundaries, range overlays and picking correspond to actual world-space geometry.
 
-**Implementation note (Milestone 3 review):** use four seeded archetypes with circular dense asteroid exclusions and elliptical sparse/nebula regions. Validate candidate maps with command-ship clearance on a 20-unit navigation grid, including starting hull positions, deposits, portal emergence and deployment approach points, and a 45–55% exposed-yield split. Corridor count is a conservative connected-open-gate metric across a strategic map cut, not a guarantee of independent end-to-end routes. Crossroads requires four such gates; Bastion at most three. Eight deterministic candidate attempts precede a checked archetype fallback. Preview is frozen and exposes all fixture contacts; accepted maps use current-contact fog. A* and clearance-safe segment smoothing support the existing sandbox movement; local avoidance remains approximate. Deposit docking, actual resource production, wormhole relocation and waves are deferred.\n\n**Review gate:** generate and inspect multiple maps, navigate around obstacles and assess strategic geography and projected readability.
+**Implementation note (Milestone 3 review):** use four seeded archetypes with tapered, irregular polygonal belts for dense/sparse asteroids and nebulae. Validate candidate maps with command-ship clearance on a 50-unit navigation grid, with exact polygon clearance checks for movement and path smoothing, including starting hull positions, deposits, portal emergence and deployment approach points, and a 45–55% exposed-yield split. Corridor count is a conservative connected-open-gate metric across a strategic map cut, not a guarantee of independent end-to-end routes. Crossroads requires four such gates; Bastion at most three. Eight deterministic candidate attempts precede a checked archetype fallback. Preview is frozen and exposes all fixture contacts; accepted maps use current-contact fog. A* and clearance-safe segment smoothing support the existing sandbox movement; local avoidance remains approximate. Deposit docking, actual resource production, wormhole relocation and waves are deferred.
+
+**Review gate:** generate and inspect multiple maps, navigate around obstacles and assess strategic geography and projected readability.
 
 #### Milestone 4 — Fleet command
 
@@ -504,8 +506,8 @@ Suggested common regeneration defaults: shield 8% maximum HP/sec, hull 1% maximu
 
 | Setting | Initial tuning |
 |---|---|
-| Map dimensions | 1,800 × 1,800 world units |
-| Navigation cell | 20 units; adjust for collision geometry |
+| Map dimensions | 5,700 × 5,700 world units (approximately 10× former battlefield area); legacy open-space review fixtures remain 1,800 × 1,800 |
+| Navigation cell | 50 units; exact polygon/segment clearance checks |
 | Normal ship movement | 270 units/s (Milestone 2 trial tuning) |
 | Sparse asteroid speed | 0.65× |
 | Nebula sensor and targeting | 0.65× when source is within nebula |
