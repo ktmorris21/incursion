@@ -149,6 +149,8 @@ export function validateMap(map){
  if(map.dense.length<2||map.deposits.length!==4||map.sparse.length!==4||map.nebula.length!==3)errors.push('missing environmental regions');
  const total=map.deposits.reduce((s,p)=>s+p.yield,0),outside=map.deposits.filter(p=>dist(p,map.base)>map.safeRadius).reduce((s,p)=>s+p.yield,0)/total;
  if(outside<.45||outside>.55)errors.push('yield split');
+ for(const e of map.links){if(e.width<MIN_PASSAGE||e.width>MAX_PASSAGE||e.points.some((p,i)=>i>0&&!segmentClear(map,e.points[i-1],p,175)))errors.push('passage clearance');}
+ if(map.rooms.length<14||map.links.length<map.rooms.length-1)errors.push('insufficient chamber network');
  const corridors=gateCount(map,c);if(corridors!==map.expectedGates)errors.push('corridor diversity');
  return {ok:!errors.length,errors,corridors,outside};
 }
@@ -162,7 +164,8 @@ function ribbon(rng,x,y,length,width,angle,bend=.18){
 }
 // Generate the room/route graph first, then carve it out of asteroid terrain.
 // Raster used only for generation; polygon geometry is authoritative at runtime.
-const TILE=150,MIN_PASSAGE=420,MAX_PASSAGE=950;
+const TILE=150;
+export const MIN_PASSAGE=420,MAX_PASSAGE=950;
 function carveBanks(width,height,rooms,links,exits){
  const n=Math.round(width/TILE),m=Math.round(height/TILE),open=new Uint8Array(n*m);
  const mark=(a,b,r)=>{
@@ -210,7 +213,7 @@ function candidate(seed,archetype,attempt){
  const cx=base.x+180,cy=base.y;
  const starts=[base,{x:cx,y:cy},...['carrier','missile','destroyer'].map((kind,i)=>({x:cx+CONFIG.patrol.radii[kind]*Math.cos(i*2*Math.PI/3),y:cy+CONFIG.patrol.radii[kind]*Math.sin(i*2*Math.PI/3)})),{x:base.x-80,y:base.y-260},{x:base.x-80,y:base.y+260}];
  const expectedGates=archetype==='Bastion'?2:archetype==='Crossroads'?4:archetype==='Frontier'?3:3+Math.floor(rng()*2);
- const size=5,mid=12,nodes=Array.from({length:25},(_,id)=>({id,x:j((id%5+.5)*width/5,210),y:j((Math.floor(id/5)+.5)*height/5,210),radius:j(600,150)}));
+ const size=5,mid=12,nodes=Array.from({length:25},(_,id)=>({id,x:j((id%5+.5)*width/5,340),y:j((Math.floor(id/5)+.5)*height/5,340),radius:j(600,150)}));
  nodes[mid]={id:mid,...base,radius:920};
  const adjacent=[7,11,13,17];for(const id of adjacent){const p=nodes[id],a=Math.atan2(p.y-base.y,p.x-base.x);p.x=base.x+1850*Math.cos(a);p.y=base.y+1850*Math.sin(a);p.radius=j(490,60);}
  const edges=shuffle([0,1,2,3]).slice(0,3),portalNodes=edges.map(edge=>{const t=1+Math.floor(rng()*3);return edge===0?t:edge===1?4+t*5:edge===2?20+t:t*5;});
