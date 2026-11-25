@@ -1,6 +1,6 @@
 import * as T from '../../vendor/three.module.js';
 import {seededRandom} from '../core/math.js';
-import {detected,inside,dimensions} from '../core/terrain.js';
+import {detected,interiorClear,polygonArea,dimensions} from '../core/terrain.js';
 // Terrain geometry is derived from the authoritative map, not a separate collision model.
 export class TerrainView{
  constructor(scene){this.root=new T.Group();scene.add(this.root);this.map=null;this.resources=new Set();this.portals=[];this.path=null;this.pathKey='';}
@@ -29,17 +29,17 @@ export class TerrainView{
   // Instanced rock clusters keep the expanded terrain inexpensive to draw.
   const samples=[];
   for(const [regions,dense] of [[map.dense,true],[map.sparse,false]])for(const z of regions){
-   const b=z.bounds,area=(b.maxX-b.minX)*(b.maxY-b.minY),count=Math.min(dense?240:115,Math.max(28,Math.round(area/(dense?3100:8000))));
+   const b=z.bounds,area=polygonArea(z),count=Math.min(dense?1700:115,Math.max(28,Math.round(area/(dense?4100:6500))));
    for(let i=0,tries=0;i<count&&tries<count*25;tries++){
-    const x=b.minX+rng()*(b.maxX-b.minX),y=b.minY+rng()*(b.maxY-b.minY),s=(dense?11:5)+rng()*(dense?18:12);
-    if(!inside({x,y},z)||![[s,0],[-s,0],[0,s],[0,-s]].every(([dx,dy])=>inside({x:x+dx,y:y+dy},z)))continue;
+    const x=b.minX+rng()*(b.maxX-b.minX),y=b.minY+rng()*(b.maxY-b.minY),s=(dense?15:5)+rng()*(dense?25:12);
+    if(!interiorClear({x,y},z,s*1.25))continue;
     samples.push({x,y,s,dense});i++;
    }
   }
   if(samples.length){const inst=this.own(new T.InstancedMesh(rockGeo,rockMat,samples.length)),o=new T.Object3D();samples.forEach(({x,y,s,dense},i)=>{o.position.set(x,s*.18,y);o.scale.set(s,s*(.6+rng()*.6),s*(.65+rng()*.5));o.rotation.set(rng()*3,rng()*6,rng()*3);o.updateMatrix();inst.setMatrixAt(i,o.matrix);inst.setColorAt(i,new T.Color().setHSL(.09,.12+rng()*.12,(dense?.42:.35)+rng()*.28));});inst.instanceMatrix.needsUpdate=true;inst.computeBoundingSphere();this.root.add(inst);}
   for(const z of map.nebula)region(z,0x553887,.18,0x917abf,-7);
   for(const z of map.sparse)region(z,0x968262,.10,0xa99570,-3);
-  for(const z of map.dense)region(z,0x544940,.32,0xd5a879,-2);
+  for(const z of map.dense)region(z,0x544940,.40,0xd5a879,-2);
   for(const p of map.deposits){this.flatRing(p.x,p.y,31,31,0x49e8b4,.8,.035);for(let i=0;i<7;i++){const a=i*2.399963,r=i?12+rng()*8:0;const o=this.mesh(crystalGeo,crystalMat,p.x+r*Math.cos(a),8,p.y+r*Math.sin(a));o.scale.set(5+rng()*5,11+rng()*12,5+rng()*4);o.rotation.z=(rng()-.5)*.55;}}
   for(let i=0;i<map.portals.length;i++){const p=map.portals[i],active=i===map.activePortal,col=active?0xa987ff:0x66778b;this.disc(p.x,p.y,48,48,col,active?.19:.05,-1);const ring=this.flatRing(p.x,p.y,49,49,col,active?.95:.5,.045);this.flatRing(p.x,p.y,62,62,col,.46,.015);this.portals.push({ring,active});}
   this.flatRing(map.base.x,map.base.y,map.safeRadius,map.safeRadius,0x4b9da7,.26,.004);
