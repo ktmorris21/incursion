@@ -104,3 +104,26 @@ The earlier Canvas 2D entries are historical. Current review gate remains Milest
 The execution container cannot resolve GitHub or CDN hostnames, so cloning the repository into a browser-capable environment was unavailable. The connector's blob endpoint made the real Three.js CPU tests possible, but actual WebGL rendering, visual inspection at the default overview/low zoom, native browser harness, real devices and draw-call/frame-rate impact have not been verified in this increment. The launcher cruiser now has more individual meshes; performance remains subject to later profiling. The 80% overlap ceiling is a provisional regression threshold, not a guarantee of player recognition.
 
 For human review, reload the hosted foundation, turn Labels off, and compare the four friendly ships and hostile cruiser at normal overview and zoomed views; verify the four silhouettes are readily identifiable. Stay at Milestone 1 until the user approves the next gate.
+
+## Milestone 2 — Reopened planar 3D naval combat sandbox
+
+Milestone 1 approved by user. Existing 3D model geometry retained. User requested much faster vessels and longer-ranged naval battles.
+
+### Implemented and provisional tuning
+
+- Normal combat movement 90 → 270 world units/s for all mobile classes; the prior model-review orbit fixture is also sped up 3×. Ship ranges carrier 160 → 320, missile cruiser 220 → 440, destroyer 110 → 220, frigate 130 → 260. Corresponding sensors doubled so they do not truncate weapon ranges. Future missile/beam tower range/sensor planning defaults updated proportionally in spec, no towers implemented.
+- Duel fixtures start at 180 (in range) or 880 (outside range); mixed fleet formation starts at a wider separation. Retained nearest-target, movement stand-off, damage, counter matrix, regeneration and fixed-step logic. No changes to HP, base damage, interval, costs, 2× / .75× counters or map dimensions.
+- Default mixed-fleet sandbox and three counter duels, close-range checkbox, empty scenario, spawn/position/reset, inspect, focus, pause, speed and graphics controls. Model review scenario retains the civilian vessels, station and moving frigate. Health bars and optional selected nominal weapon range ring.
+- Actual 3D mesh-based additive effects for fighter swarms/attack runs/blaster bolts, curved missile salvos, solid beams, frigate bolts, shields/impacts, engine trails and destruction/debris. Bounded 160 transient event groups; shared geometry/material ownership, reset/teardown cleanup, simulation-time animation and fewer cosmetic fighters/debris at low quality. No independent projectile/fighter combat. Projectile animations can lag authoritative hits or destruction. Effects are stylized first-pass art, not postprocessed bloom or physically simulated munitions.
+- Friendly repair fixture remains finite 3,000 E with no income; hostile shield-only regeneration is free. Battle ends when a faction is eliminated; clock/repair and cosmetic effects may continue. Sandbox uses open-space global target approach but firing obeys range/detection. No Milestone 3 systems.
+
+### Executed validation
+
+- **28/28 core and CPU-side 3D test groups passed** using real vendored Three.js r170 retrieved by Git blob and executed in the JavaScript isolate with adapted module bindings and timing. Includes retained silhouette regressions, range/stand-off, all four weapon effects, finite transforms, effect caps, reset/disposal and identical authoritative mixed fleet state at low/medium/high quality.
+- All twelve baseline counter duels passed (three matchups, two separations, both faction assignments). Friendly winners, close/distant simulated duration: carrier over cruiser 4.55/5.75 s; cruiser over destroyer 12.05/12.85 s; destroyer over carrier 4.05/5.40 s. All three reversed-faction sets also passed. No universal balance claim.
+- Added a native WebGL live combat integration test, bringing the full browser harness to 32 groups (28 core/CPU + 4 WebGL). Compiled updated renderer and application entry point and checked all referenced control IDs exist in HTML. Verified existing 3D model file unchanged.
+- Actual browser WebGL execution and screenshots remain outstanding: the execution container has Chromium and Node but cannot resolve github.com to clone the private repository. The JS connector isolate does not provide a DOM/WebGL context. Real on-device visuals, UI layout, input, performance and GPU resource behavior remain for review. No 32/32 or FPS claim.
+
+### Review gate
+
+Reload, Engage mixed fleet, try 0.5× for effect inspection, toggle Range and select each class, then try the three counter duels and custom scenarios. Verify faster movement and long-range exchange feel; compare actual appearance and separation at overview and zoomed views. The 270-unit/s speed and 2× ranges are trial values, not settled balance. Review Milestone 2 before starting Milestone 3.
