@@ -25,3 +25,14 @@
 @media(max-width:700px){.minimap-panel{width:94px;bottom:100px;right:6px}.map-key{display:none}}
 
 @media(min-height:651px) and (min-width:601px){.sandbox{max-height:calc(100dvh - 310px);overflow:auto}}
+
+/* Right-side review rail: map above inspector, with no overlapping panels. */
+.right-rail{position:absolute;right:18px;top:94px;bottom:98px;width:248px;display:flex;flex-direction:column;gap:10px;align-items:stretch;z-index:4;pointer-events:none}
+.right-rail .minimap-panel,.right-rail .inspector{position:relative;inset:auto;width:100%;flex-shrink:0;pointer-events:auto}
+.right-rail .minimap-panel{align-self:flex-end;width:158px}
+.right-rail .inspector{flex:0 1 auto;min-height:50px;overflow:auto}
+.right-rail #minimap{aspect-ratio:1}
+@media(max-width:850px){.right-rail{right:12px;top:80px;bottom:84px;width:210px}}
+@media(max-height:650px){.right-rail{top:70px;bottom:68px;gap:6px;width:185px}.right-rail .minimap-panel{width:105px;padding:5px}.right-rail .inspector{padding:8px}}
+@media(max-width:600px) and (orientation:portrait){.right-rail{right:8px;top:118px;bottom:126px;width:188px}.right-rail .minimap-panel{width:112px}}
+@media(max-height:530px) and (orientation:landscape){.right-rail{top:58px;bottom:56px;gap:4px}.right-rail .minimap-panel{width:86px;padding:4px}.right-rail .minimap-panel .eyebrow{font-size:8px}.right-rail .inspector{flex:1 1 auto}}
