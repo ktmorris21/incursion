@@ -1,3 +1,4 @@
+import * as T from '../vendor/three.module.js';
 import {CONFIG,COMBAT} from '../src/config.js';
 import {createState,makeBattle,makeDemo,spawn,destroy,drainEvents,step,poseAt,applyCommand} from '../src/core/state.js';
 import {FixedClock} from '../src/core/clock.js';
@@ -40,6 +41,56 @@ coreTests.push(
  ['Combat: reproducible fleet battle at different render rates',()=>{const results=[];for(const fps of [30,60,144]){const s=makeBattle();applyCommand(s,{type:'engage'});const c=new FixedClock(dt=>{step(s,dt);drainEvents(s);});for(let i=0;i<fps*15;i++)c.advance(1/fps);results.push(s);}eq(results[0],results[1]);eq(results[0],results[2]);}],
  ['Sandbox: positioning, pause and invalid commands',()=>{const s=makeBattle('empty');assert(!applyCommand(s,{type:'engage'}).ok);const a=spawn(s,{kind:'carrier',faction:'friendly',x:500,y:500});assert(!applyCommand(s,{type:'position',id:a.id,x:600,y:500},true).ok);assert(applyCommand(s,{type:'position',id:a.id,x:600,y:500}).ok);for(let i=0;i<40;i++)step(s);near(a.x,600);eq(a.destination,null);}]
 );
+
+ // CPU-only mesh checks: real Three.js raycasts ignore material color and labels.
+ coreTests.push(
+ ['3D roles: physical proportions and role-defining negative space',()=>{
+  const r=new ModelRegistry();
+  try{
+   const models=Object.fromEntries(['missile','frigate','miner','constructor'].map(k=>[k,r.get(k,'friendly')]));
+   const hostile=r.get('missile','hostile'),ray=new T.Raycaster(),down=new T.Vector3(0,-1,0);
+   for(const g of [...Object.values(models),hostile])g.updateMatrixWorld(true);
+   const hit=(g,x,z)=>{ray.set(new T.Vector3(x*.52,100,z*.52),down);return ray.intersectObject(g,true).length>0;};
+   const size=g=>new T.Box3().setFromObject(g).getSize(new T.Vector3());
+   for(const g of [models.missile,hostile]){
+    assert(hit(g,20,0)&&hit(g,20,24)&&hit(g,20,-24),'cruiser keel and two launcher banks');
+    assert(!hit(g,20,13)&&!hit(g,20,-13),'cruiser open magazine channels');
+   }
+   const f=models.frigate,m=models.miner,c=models.constructor;
+   assert(hit(f,48,0)&&!hit(f,48,12)&&hit(f,-25,26),'frigate spear and aft communications outriggers');
+   assert(size(f).y>size(models.missile).y*1.5,'frigate elevated command bridge');
+   assert(size(m).x/size(m).z<1.25&&hit(m,25,0)&&hit(m,25,21),'miner compact solid industrial body');
+   assert(!hit(c,38,0)&&hit(c,38,20)&&hit(c,38,-20),'constructor open fabrication fork');
+   for(const g of Object.values(models)){const s=size(g);assert(s.x>35&&s.x<70&&s.z>25&&s.z<45,'model remains at reviewed battlefield scale');}
+  }finally{r.clear();}
+ }],
+ ['3D roles: projected silhouettes differ at five headings without color or labels',()=>{
+  const r=new ModelRegistry();
+  try{
+   const kinds=['missile','frigate','miner','constructor'],models=kinds.map(k=>r.get(k,'friendly'));
+   const camera=new T.OrthographicCamera(-38,38,38,-38,.1,500);
+   const a=CONFIG.camera.elevation*Math.PI/180;
+   camera.position.set(0,100*Math.sin(a),100*Math.cos(a));camera.lookAt(0,0,0);camera.updateProjectionMatrix();camera.updateMatrixWorld(true);
+   const ray=new T.Raycaster(),p=new T.Vector2();
+   for(const heading of [0,Math.PI/4,Math.PI/2,3*Math.PI/4,Math.PI]){
+    const masks=models.map(g=>{
+     g.rotation.y=heading;g.updateMatrixWorld(true);
+     const mask=[];
+     for(let iy=-12;iy<=12;iy++)for(let ix=-12;ix<=12;ix++){
+      ray.setFromCamera(p.set(ix*.08,iy*.08),camera);mask.push(ray.intersectObject(g,true).length>0);
+     }
+     return mask;
+    });
+    for(let i=0;i<masks.length;i++)for(let j=i+1;j<masks.length;j++){
+     let intersection=0,union=0;
+     for(let k=0;k<masks[i].length;k++){intersection+=Number(masks[i][k]&&masks[j][k]);union+=Number(masks[i][k]||masks[j][k]);}
+     assert(union>0&&intersection/union<.80,kinds[i]+' / '+kinds[j]+' at heading '+heading+': projected overlap '+intersection/union);
+    }
+   }
+  }finally{r.clear();}
+ }]
+ );
+
 export const browserTests=[
  ['WebGL: models render, pick and resize without mutating simulation',()=>{const canvas=document.createElement('canvas'),c=new Camera(800,500),r=new BattlefieldRenderer(canvas,c),s=makeDemo(),before=JSON.stringify(s);r.resize(800,500,2,'high');r.draw(s,1);eq([canvas.width,canvas.height],[1600,1000]);assert(r.gl.info.render.triangles>0);assert(r.gl.getContext().getError()===0);const e=s.entities[0];c.focus(e.x,e.y);r.draw(s,1);assert(r.pick(400,250)!==null);r.resize(390,844,3,'medium');r.draw(s,1);eq([canvas.width,canvas.height],[585,1266]);eq(JSON.stringify(s),before);r.dispose();eq(r.registry.cache.size,0);}],
  ['WebGL: mesh assets and resource ownership',()=>{const r=new ModelRegistry();for(const [kind,faction] of [['station','friendly'],['frigate','friendly'],['carrier','friendly'],['missile','friendly'],['destroyer','friendly'],['miner','friendly'],['constructor','friendly'],['carrier','hostile'],['missile','hostile'],['destroyer','hostile']]){const a=r.get(kind,faction),b=r.get(kind,faction);assert(a!==b);let count=0;a.traverse(o=>{if(o.isMesh){count++;assert(o.geometry.attributes.position.count>0);assert(o.material.isMeshStandardMaterial);}});assert(count>5);}assert(r.geometry.size>0);r.clear();eq(r.geometry.size,0);eq(r.materials.size,0);}],
