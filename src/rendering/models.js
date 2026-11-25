@@ -1,4 +1,5 @@
 import * as T from '../../vendor/three.module.js';
+import {CONFIG} from '../config.js';
 // Model templates own shared geometry and materials. Instances own transforms only.
 export class ModelRegistry {
  constructor(){this.cache=new Map();this.geometry=new Set();this.materials=new Set();}
@@ -117,7 +118,7 @@ export class ModelRegistry {
  box(-23,11,11,20,5,16,plate);
  for(let i=0;i<4;i++)box(-30+i*5,14,11,1.5,1,12,dark);
  }
- g.scale.setScalar(.52);
+ g.scale.setScalar(kind==='frigate'?CONFIG.visuals.commandScale:CONFIG.visuals.shipScale);
  return g;
  }
  const outline=kind==='carrier'?[[-48,-27],[-32,-34],[24,-34],[47,-20],[55,0],[47,20],[24,34],[-32,34],[-48,27]]:kind==='destroyer'?[[-45,-26],[-19,-27],[13,-13],[57,-5],[65,0],[57,5],[13,13],[-19,27],[-45,26]]:[[-45,-18],[-28,-23],[21,-19],[52,-8],[58,0],[52,8],[21,19],[-28,23],[-45,18]];
