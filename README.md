@@ -1,45 +1,46 @@
-# Incursion — Milestone 1: Application foundation
+# Incursion — Milestone 2: Combat sandbox
 
-A fresh implementation following **GAME_SPEC.md v1.1 (2.5D rendering and staged implementation)**. This is the first review increment, not a playable combat or match build.
+A staged implementation of **GAME_SPEC.md v1.1**, following the approved Canvas 2D foundation. This is a combat test range, not a complete playable match.
 
 ## Run
 
-Serve the repository root with any static HTTP server. For example:
+Serve the repository root with any static HTTP server, for example:
 
 ```sh
 python3 -m http.server 8000
 ```
 
-Open `http://localhost:8000/`. No dependency installation, build step, backend, CDN or WebGL is required. Use a modern browser with Canvas 2D and native ES modules. Opening the file directly with `file://` is not supported.
+Open http://localhost:8000/ in a modern browser. No build step, dependency installation, backend, CDN or WebGL required. Native ES modules require HTTP serving; file:// is not supported.
 
-## Review the foundation
+## Review the combat sandbox
 
-- Inspect the representative friendly/hostile ship silhouettes and command station on the demo battlefield. The additional moving frigate is a deterministic animation fixture, not a gameplay fleet.
-- Click/tap to inspect a sprite; double-click or use **Focus selection** to focus it.
-- Drag with the left or middle mouse button, use WASD/arrows, or drag with one finger to pan. Wheel/pinch and the zoom buttons zoom. **Fit scene** restores a useful overview.
-- Pause/resume with Space or the toolbar. Try 0.5×, 1× and 2× speed. Camera navigation and inspection remain available while paused.
-- Change quality, toggle labels, resize the browser, and try landscape touch controls. A hidden tab automatically pauses; resume explicitly.
-- Open `/?debug` for developer diagnostics, the optional projection grid, entity counts, camera/pointer coordinates, backing-store size, timing, and controlled spawn/remove/single-step actions. Spawn/remove and reset are disabled or rejected during pause; single-step is an explicit debug exception.
+- Mixed fleet battle is the default setup. Click **Engage** to begin automatic approach, targeting and combat. The result remains visible; repair can continue after the battle.
+- Select a counter duel or Empty range and click **Load scenario**. For duels, toggle **Start duel in range** to compare close and approach engagements.
+- Choose class and faction, click **Place ship**, then click/tap a battlefield position. Select any vessel and use **Position ship** to move it to a chosen point. These are sandbox controls, not future individual combat-ship orders.
+- Inspect shield/hull and weapon stats, pause/resume, change speed or graphics quality, pan using drag/WASD/arrows, zoom using wheel/pinch, and double-click or Focus selection to inspect closer. Fit scene provides a smaller, unobstructed default overview; manual zoom remains available. A hidden tab pauses and requires explicit resume.
+- Open /?debug for diagnostics, projection grid, single-step, controlled spawn/removal and observed timings. Reset reloads the selected scenario; pause rejects sandbox mutations.
+
+Combat triangle: light carrier counters missile cruiser; missile cruiser counters destroyer; destroyer counters light carrier. Initial class HP, damage, intervals and range follow the spec. Common speed is provisionally 90 world units/s in response to visual feedback. Friendly repair uses a shared finite 3000 E test reserve with proportional shortage behavior and no income; hostile shields regenerate for free. No terrain, fleet leashes, production or match objectives yet.
 
 ## Tests
 
-Open `/tests/` for the native browser suite (19 test groups; no external dependencies). Optional core-only test invocation on Node 22+:
+Open /tests/ for the native browser harness (29 test groups). Optional headless core runner on Node 22+:
 
 ```sh
 node tests/run.mjs
 ```
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for the executed tests, limitations and review criteria.
+See [DEVELOPMENT.md](DEVELOPMENT.md) for results, limitations, decisions and review criteria.
 
 ## Architecture
 
-- `src/config.js`: grouped foundation settings, units and initial defaults.
-- `src/core/`: plain-data state, lifecycle, validated debug commands, deterministic demo and fixed-step clock; no DOM or rendering imports.
-- `src/rendering/`: invertible oblique camera, directional sprite registry, Canvas 2D rendering, depth sort and picking.
-- `src/ui/input.js`: mouse, keyboard and multi-touch camera input adapter.
-- `src/main.js`: application orchestration and DOM panels.
-- `tests/`: native browser harness, shared assertions and optional Node runner.
+- src/config.js: centralized settings for world, camera, clock, visuals and combat.
+- src/core/: plain-data state and lifecycle, validated commands, deterministic 20 Hz clock, combat/repair logic.
+- src/rendering/: invertible oblique camera, cached directional sprites and optional local sprite assets, depth sort, Canvas 2D rendering and event-driven cosmetic effects.
+- src/ui/input.js: mouse, keyboard and touch input.
+- src/main.js: application orchestration and DOM panels.
+- tests/: dependency-free native browser harness and optional Node runner.
 
-All initial artwork is original procedural 2D artwork, cached in directional frames. Replacement local PNG/WebP/SVG assets or atlases can be registered through `SpriteRegistry.register(kind, faction, descriptor)`. The descriptor provides `url`, `frames`, `columns`, `scale`, normalized `anchor`, `headingOffset` (radians), and `attachmentPoints`. Failed/pending loads use procedural artwork. Visual sizes and attachment points do not define gameplay collision or damage. No third-party assets are used.
+Original procedural art only. External transparent PNG/WebP/SVG/atlas artwork can be registered through SpriteRegistry; failed/pending loads use procedural fallback. Art and cosmetic effects do not change damage, range, collision or simulation state.
 
-**Next gate:** Milestone 2 — Combat sandbox. Do not begin it until Milestone 1 is approved or continuation is explicitly requested.
+**Next gate: Milestone 3 — Battlefield generation. Do not begin until the user approves Milestone 2 or explicitly requests continuation.**
