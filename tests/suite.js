@@ -11,7 +11,7 @@ import {CombatEffects} from '../src/rendering/effects.js';
 export function assert(ok,message='Assertion failed'){if(!ok)throw Error(message);}
 const near=(a,b,epsilon=1e-7)=>assert(Math.abs(a-b)<epsilon,`${a} differs from ${b}`);
 const eq=(a,b)=>assert(JSON.stringify(a)===JSON.stringify(b),`Expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
-import {multiplier,nearest,damage,regenerate} from '../src/core/combat.js';
+import {multiplier,nearest,damage,regenerate,separationDistance} from '../src/core/combat.js';
 export const coreTests=[
   ['Projection: world/screen round-trip across pans, zooms and resize',()=>{
     const c=new Camera();const rand=seededRandom('projection-fixtures');
@@ -51,7 +51,7 @@ coreTests.push(
    const models=Object.fromEntries(['missile','frigate','miner','constructor'].map(k=>[k,r.get(k,'friendly')]));
    const hostile=r.get('missile','hostile'),ray=new T.Raycaster(),down=new T.Vector3(0,-1,0);
    for(const g of [...Object.values(models),hostile])g.updateMatrixWorld(true);
-   const hit=(g,x,z)=>{ray.set(new T.Vector3(x*.52,100,z*.52),down);return ray.intersectObject(g,true).length>0;};
+   const hit=(g,x,z)=>{ray.set(new T.Vector3(x*g.scale.x,100,z*g.scale.z),down);return ray.intersectObject(g,true).length>0;};
    const size=g=>new T.Box3().setFromObject(g).getSize(new T.Vector3());
    for(const g of [models.missile,hostile]){
     assert(hit(g,20,0)&&hit(g,20,24)&&hit(g,20,-24),'cruiser keel and two launcher banks');
@@ -62,7 +62,7 @@ coreTests.push(
    assert(size(f).y>size(models.missile).y*1.5,'frigate elevated command bridge');
    assert(size(m).x/size(m).z<1.25&&hit(m,25,0)&&hit(m,25,21),'miner compact solid industrial body');
    assert(!hit(c,38,0)&&hit(c,38,20)&&hit(c,38,-20),'constructor open fabrication fork');
-   for(const g of Object.values(models)){const s=size(g);assert(s.x>35&&s.x<70&&s.z>25&&s.z<45,'model remains at reviewed battlefield scale');}
+   for(const [kind,g] of Object.entries(models)){const s=size(g);if(kind==='frigate'){assert(s.x>115&&s.x<140&&s.z>50&&s.z<90,'command ship roughly twice the length');}else assert(s.x>35&&s.x<70&&s.z>25&&s.z<45,'model remains at reviewed battlefield scale');}
   }finally{r.clear();}
  }],
  ['3D roles: projected silhouettes differ at five headings without color or labels',()=>{
@@ -193,16 +193,37 @@ coreTests.push(
   destroy(s,f.id);step(s);assert(escorts.every(e=>e.patrol===null));assert(canPosition(s,escorts[0]));
  }],
  ['Command patrol: deterministic with multiple leaders, civilians independent and world bounds',()=>{
-  const run=fps=>{const s=makeBattle('empty'),a=spawn(s,{kind:'frigate',faction:'friendly',x:35,y:35}),b=spawn(s,{kind:'frigate',faction:'friendly',x:1200,y:1200}),e=spawn(s,{kind:'carrier',faction:'friendly',x:35,y:35}),m=spawn(s,{kind:'miner',faction:'friendly',x:50,y:50}),c=new FixedClock(dt=>step(s,dt));for(let i=0;i<fps*10;i++)c.advance(1/fps);eq(e.patrol.leaderId,a.id);eq([m.x,m.y],[50,50]);assert(e.x>=0&&e.y>=0&&e.x<=1800&&e.y<=1800);destroy(s,a.id);step(s);eq(e.patrol.leaderId,b.id);return s;};
+  const run=fps=>{const s=makeBattle('empty'),a=spawn(s,{kind:'frigate',faction:'friendly',x:35,y:35}),b=spawn(s,{kind:'frigate',faction:'friendly',x:1200,y:1200}),e=spawn(s,{kind:'carrier',faction:'friendly',x:35,y:35}),m=spawn(s,{kind:'miner',faction:'friendly',x:350,y:350}),c=new FixedClock(dt=>step(s,dt));for(let i=0;i<fps*10;i++)c.advance(1/fps);eq(e.patrol.leaderId,a.id);eq([m.x,m.y],[350,350]);assert(e.x>=0&&e.y>=0&&e.x<=1800&&e.y<=1800);destroy(s,a.id);step(s);eq(e.patrol.leaderId,b.id);return s;};
   eq(run(30),run(144));
  }],
  ['3D command insignia: persistent, selectable, selected state and cleanup',()=>{
   const scene=new T.Scene(),markers=new CommandMarkers(scene),s=makeBattle(),f=s.entities.find(e=>e.kind==='frigate'),items=()=>s.entities.map(e=>({id:e.id,e,pose:poseAt(e,1)})),before=JSON.stringify(s);
   try{markers.update(items(),null,1);eq(markers.items.size,1);const g=markers.items.get(f.id);eq(g.children.length,9);eq(g.userData.entityId,f.id);
-   const ray=new T.Raycaster(new T.Vector3(f.x+41*Math.cos(.6),100,f.y-41*Math.sin(.6)),new T.Vector3(0,-1,0));assert(ray.intersectObject(g,true).length>0,'ring must be pickable');
+   const ray=new T.Raycaster(new T.Vector3(f.x+77.5*Math.cos(.6),100,f.y-77.5*Math.sin(.6)),new T.Vector3(0,-1,0));assert(ray.intersectObject(g,true).length>0,'ring must be pickable');
    markers.update(items(),f.id,.3);eq(markers.items.get(f.id),g);assert(g.scale.x>1);eq(g.children[1].material,markers.selected);eq(JSON.stringify(s),before);
    destroy(s,f.id);markers.update(items(),null,1);eq(markers.items.size,0);assert(!g.parent);markers.clear();eq(markers.root.children.length,0);
   }finally{markers.dispose();}eq(scene.children.length,0);
+ }]
+);
+coreTests.push(
+ ['Command ship: name and physical scale',()=>{
+  const s=makeBattle(),f=s.entities.find(e=>e.kind==='frigate'),registry=new ModelRegistry();
+  try{eq(f.label,'Command ship');const sizes=['frigate','carrier','missile','destroyer'].map(k=>new T.Box3().setFromObject(registry.get(k,'friendly')).getSize(new T.Vector3()).x);
+   assert(sizes.slice(1).every(x=>sizes[0]/x>1.75&&sizes[0]/x<2.5),'roughly twice other hull lengths '+sizes);
+  }finally{registry.clear();}
+ }],
+ ['Command patrol: survivors redistribute into equally spaced slots after combat and losses',()=>{
+  const s=makeBattle(),f=s.entities.find(e=>e.kind==='frigate'),escorts=s.entities.filter(e=>e.faction==='friendly'&&e!==f);
+  s.engaged=true;step(s);s.engaged=false;
+  escorts.forEach((e,i)=>{e.x=f.x+145+i*3;e.y=f.y+4;});
+  const verify=()=>{const live=s.entities.filter(e=>e.faction==='friendly'&&e!==f),angles=live.map(e=>(Math.atan2(e.y-f.y,e.x-f.x)+2*Math.PI)%(2*Math.PI)).sort((a,b)=>a-b);for(let i=0;i<angles.length;i++)near((angles[(i+1)%angles.length]-angles[i]+2*Math.PI)%(2*Math.PI),2*Math.PI/live.length,.04);for(const e of live)near(Math.hypot(e.x-f.x,e.y-f.y),CONFIG.patrol.radii[e.kind],.2);};
+  for(let i=0;i<280;i++)step(s);verify();destroy(s,escorts[2].id);for(let i=0;i<240;i++)step(s);verify();
+ }],
+ ['Spacing: both factions and civilian hulls separate, exact overlap and boundaries',()=>{
+  const s=makeBattle('empty'),f=spawn(s,{kind:'frigate',faction:'friendly',x:600,y:600}),a=spawn(s,{kind:'carrier',faction:'friendly',x:600,y:600}),b=spawn(s,{kind:'missile',faction:'hostile',x:600,y:600}),m=spawn(s,{kind:'miner',faction:'friendly',x:600,y:600}),n=spawn(s,{kind:'destroyer',faction:'hostile',x:0,y:0}),p=spawn(s,{kind:'constructor',faction:'friendly',x:0,y:0});
+  for(let i=0;i<300;i++)step(s);
+  eq([f.x,f.y],[600,600]);for(const e of s.entities)assert(Number.isFinite(e.x)&&Number.isFinite(e.y)&&e.x>=0&&e.y>=0&&e.x<=1800&&e.y<=1800);
+  for(let i=0;i<s.entities.length;i++)for(let j=i+1;j<s.entities.length;j++){const u=s.entities[i],v=s.entities[j];assert(Math.hypot(u.x-v.x,u.y-v.y)>=separationDistance(u,v)-1,'separation '+u.id+'/'+v.id);}
  }]
 );
 export const browserTests=[
