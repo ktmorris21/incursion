@@ -19,10 +19,26 @@ export function regenerate(state,dt){
  for(const e of state.entities){if(e.hull<=0||state.time-e.lastDamage<COMBAT.delay-1e-8)continue;const shield=Math.min(e.maxShield-e.shield,e.maxShield*COMBAT.shieldRate*dt),hull=Math.min(e.maxHull-e.hull,e.maxHull*COMBAT.hullRate*dt);if(e.faction==='hostile'){e.shield+=shield;continue;}const cost=shield*COMBAT.shieldCost+hull*COMBAT.hullCost;jobs.push({e,shield,hull});demand+=cost;}
  const factor=demand?Math.min(1,state.energy/demand):1;for(const {e,shield,hull} of jobs){e.shield+=shield*factor;e.hull+=hull*factor;}state.energy=Math.max(0,state.energy-demand*factor);state.energyFactor=factor;
 }
+// Idle sandbox escorts, not the later fleet assignment/engagement-leash system.
+export const isEscort=e=>e.faction==='friendly'&&Object.hasOwn(CONFIG.patrol.radii,e.kind);
+export function patrolGoal(e,from,positions,dt){
+ if(!isEscort(e))return null;
+ const leaders=positions.filter(p=>p.kind==='frigate'&&p.faction==='friendly'&&p.hull>0);
+ const leader=leaders.find(p=>p.id===e.patrol?.leaderId)??leaders.sort((a,b)=>distance(from,a)-distance(from,b)||a.id-b.id)[0];
+ if(!leader){e.patrol=null;return null;}
+ const radius=CONFIG.patrol.radii[e.kind];
+ // Retain leader between ticks; rejoin smoothly from current bearing after a fight.
+ const dx=from.x-leader.x,dy=from.y-leader.y;
+ if(!e.patrol||e.patrol.leaderId!==leader.id||!e.patrol.active)
+  e.patrol={leaderId:leader.id,phase:Math.hypot(dx,dy)>1?Math.atan2(dy,dx):e.id*2.399963,active:true};
+ e.patrol.phase+=CONFIG.patrol.rate*dt;
+ const x=clamp(leader.x+radius*Math.cos(e.patrol.phase),0,CONFIG.world.width),y=clamp(leader.y+radius*Math.sin(e.patrol.phase),0,CONFIG.world.height);
+ return {x,y,leaderMoving:Math.hypot(leader.x-leader.prevX,leader.y-leader.prevY)>0.1||!!leader.destination};
+}
 export function combatStep(state,dt,destroy){
  const entities=state.entities,positions=entities.map(e=>({...e}));
  // Simultaneous movement proposals avoid faction order advantage.
- for(const e of entities){if(e.hull<=0||e.kind==='station')continue;const from=positions.find(p=>p.id===e.id),target=e.destination??(state.engaged&&stats(e).damage?nearest(from,positions,Infinity,false):null);if(!target)continue;const d=distance(from,target);if(d<1e-8){if(e.destination)e.destination=null;continue;}e.heading=Math.atan2(target.y-from.y,target.x-from.x);const stop=e.destination?0:stats(e).range*.98,travel=Math.min(COMBAT.speed*dt,Math.max(0,d-stop));e.x=clamp(from.x+Math.cos(e.heading)*travel,0,CONFIG.world.width);e.y=clamp(from.y+Math.sin(e.heading)*travel,0,CONFIG.world.height);if(e.destination&&distance(e,e.destination)<.01)e.destination=null;}
+ for(const e of entities){if(e.hull<=0||e.kind==='station')continue;const from=positions.find(p=>p.id===e.id);if((state.engaged||e.destination)&&e.patrol)e.patrol.active=false;const patrol=!state.engaged&&!e.destination?patrolGoal(e,from,positions,dt):null;const target=e.destination??(state.engaged&&stats(e).damage?nearest(from,positions,Infinity,false):patrol);if(!target)continue;const d=distance(from,target);if(d<1e-8){if(e.destination)e.destination=null;continue;}e.heading=Math.atan2(target.y-from.y,target.x-from.x);const stop=e.destination||patrol?0:stats(e).range*.98,speed=patrol&&!patrol.leaderMoving?CONFIG.patrol.settleSpeed:COMBAT.speed,travel=Math.min(speed*dt,Math.max(0,d-stop));e.x=clamp(from.x+Math.cos(e.heading)*travel,0,CONFIG.world.width);e.y=clamp(from.y+Math.sin(e.heading)*travel,0,CONFIG.world.height);if(e.destination&&distance(e,e.destination)<.01)e.destination=null;}
  for(const e of entities){e.target=null;if(!state.engaged||e.hull<=0||!stats(e).damage||e.invulnerable)continue;const c=stats(e),target=nearest(e,entities,c.range);if(!target)continue;e.target=target.id;if(state.time+1e-8<e.nextAttack)continue;e.nextAttack=state.time+c.interval;damage(state,e,target,c.damage*multiplier(e.kind,target.kind));}
  for(const e of [...entities])if(e.hull<=0)destroy(state,e.id);
  regenerate(state,dt);
