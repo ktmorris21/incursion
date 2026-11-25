@@ -1,4 +1,4 @@
-import {ARCHETYPES,generateMap,fallbackMap,findPath,segmentClear,walkable,clearance,speedFactor,sensorFactor,detected,inside,dimensions} from '../src/core/terrain.js';
+import {ARCHETYPES,generateMap,fallbackMap,findPath,segmentClear,walkable,clearance,speedFactor,sensorFactor,detected,inside,dimensions,regionsConflict,portalApproach,portalFormation} from '../src/core/terrain.js';
 import {TerrainView} from '../src/rendering/terrain.js';
 import * as T from '../vendor/three.module.js';
 import {CONFIG,COMBAT} from '../src/config.js';
@@ -232,7 +232,7 @@ coreTests.push(
  ['Geography: 1,000 seeded maps, all archetypes, resource balance and validated fallback',()=>{
   for(const archetype of ARCHETYPES){
    for(let i=0;i<250;i++){
-    const m=generateMap('survey-'+i,archetype);assert(m.validation.ok);assert(m.validation.outside>=.45&&m.validation.outside<=.55);eq(m.deposits.length,4);eq(m.portals.length,3);assert(m.activePortal>=0&&m.activePortal<3);
+    const m=generateMap('survey-'+i,archetype);assert(m.validation.ok);assert(m.validation.outside>=.45&&m.validation.outside<=.55);eq(m.deposits.length,4);eq(m.portals.length,3);eq(m.base,{x:2850,y:2850});eq(new Set(m.portals.map(p=>p.edge)).size,3);assert(m.portals.every(p=>Math.min(p.x,p.y,5700-p.x,5700-p.y)<=325));const regions=[...m.dense,...m.sparse,...m.nebula];for(let a=0;a<regions.length;a++)for(let b=0;b<a;b++)assert(!regionsConflict(regions[a],regions[b]));assert(m.activePortal>=0&&m.activePortal<3);
     if(archetype==='Crossroads')assert(m.validation.corridors>=4);if(archetype==='Bastion')assert(m.validation.corridors<=3);
     if(i===0)eq(m,generateMap('survey-'+i,archetype));
    }assert(fallbackMap('fallback-test',archetype).validation.ok);
@@ -246,9 +246,9 @@ coreTests.push(
  }],
  ['Navigation: command ship crosses all four generated archetypes and all hulls stay clear',()=>{
   for(const archetype of ARCHETYPES){
-   const s=makeTerrainBattle('incursion-01',archetype,false),e=s.entities.find(e=>e.kind==='frigate'),goal={x:s.map.portals[1].x-100,y:s.map.portals[1].y};
+   const s=makeTerrainBattle('incursion-01',archetype,false),e=s.entities.find(e=>e.kind==='frigate'),goal=portalApproach(s.map,s.map.portals[1]);
    assert(applyCommand(s,{type:'position',id:e.id,...goal}).ok);
-   for(let i=0;i<1000;i++){step(s);drainEvents(s);for(const a of s.entities)assert(walkable(s.map,a,clearance(a)),archetype+' hull '+a.id);}
+   for(let i=0;i<1400;i++){step(s);drainEvents(s);for(const a of s.entities)assert(walkable(s.map,a,clearance(a)),archetype+' hull '+a.id);}
    near(e.x,goal.x,.1);near(e.y,goal.y,.1);
    const blocked=s.map.dense[0];assert(!applyCommand(s,{type:'position',id:e.id,x:blocked.x,y:blocked.y}).ok);
    assert(!applyCommand(s,{type:'spawn',data:{kind:'carrier',faction:'friendly',x:blocked.x,y:blocked.y}}).ok);
@@ -279,13 +279,28 @@ coreTests.push(
   const s=makeTerrainBattle('scale-test','Crossroads',false),d=dimensions(s.map);
   eq(d,{width:5700,height:5700});assert(d.width*d.height/(1800*1800)>9.9);assert(s.entities.some(e=>e.x>1800));
   const c=new Camera(1280,720);c.setWorld(d.width,d.height);c.fit();const a=c.worldToScreen(0,0),b=c.worldToScreen(d.width,d.height);assert(a.x>=0&&a.y>=0&&b.x<=c.width&&b.y<=c.height);c.focus(10000,10000);eq([c.x,c.y],[5700,5700]);
-  const e=s.entities.find(e=>e.kind==='frigate'),p=s.map.portals[1];assert(applyCommand(s,{type:'position',id:e.id,x:p.x-100,y:p.y}).ok);assert(e.destination.x>1800);c.setWorld();c.focus(5000,5000);eq([c.x,c.y],[1800,1800]);
+  const e=s.entities.find(e=>e.kind==='frigate'),p=s.map.portals[1];assert(applyCommand(s,{type:'position',id:e.id,...portalApproach(s.map,p)}).ok);assert(Math.max(e.destination.x,e.destination.y)>1800);c.setWorld();c.focus(5000,5000);eq([c.x,c.y],[1800,1800]);
  }],
  ['Terrain ribbons: polygon membership, clearance and straight-line crossing',()=>{
   const z={x:1000,y:900,points:[{x:400,y:850},{x:1600,y:850},{x:1600,y:950},{x:400,y:950}]};
   const map={dense:[z],sparse:[z],nebula:[z]},a={x:1000,y:500},b={x:1000,y:1300};
   assert(inside(z,z));assert(!inside(a,z));assert(!walkable(map,{x:1000,y:810},70));assert(walkable(map,{x:1000,y:770},70));assert(!segmentClear(map,a,b,35));near(speedFactor(map,z),.65);near(sensorFactor(map,z),.65);near(speedFactor(map,a),1);
   const route=findPath(map,a,b,35);assert(route?.length>1);let p=a;for(const q of route){assert(segmentClear(map,p,q,35));p=q;}
+ }]
+);
+coreTests.push(
+ ['Central chamber: station centered, edge portal formations and every portal route reachable',()=>{
+  for(const archetype of ARCHETYPES){
+   const s=makeTerrainBattle('chamber-test',archetype,false),m=s.map,station=s.entities.find(e=>e.kind==='station');
+   eq([station.x,station.y],[2850,2850]);assert(m.validation.corridors===m.expectedGates);
+   const active=m.portals[m.activePortal],formation=portalFormation(m,active),enemies=s.entities.filter(e=>e.faction==='hostile');
+   enemies.forEach((e,i)=>{near(e.x,formation[i].x);near(e.y,formation[i].y);near(e.heading,Math.atan2(m.base.y-active.y,m.base.x-active.x));});
+   for(const p of m.portals){const dest=portalApproach(m,p),route=findPath(m,m.base,dest,70);assert(route&&route.length);let q=m.base;for(const r of route){assert(segmentClear(m,q,r,70));q=r;}}
+  }
+ }],
+ ['Terrain exclusivity: rejects crossing, contained and too-close polygons',()=>{
+  const rect=(x,y,w,h)=>({points:[{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}]});
+  const a=rect(0,0,200,200);assert(regionsConflict(a,rect(100,100,200,200)));assert(regionsConflict(a,rect(50,50,25,25)));assert(regionsConflict(a,rect(220,0,60,60)));assert(!regionsConflict(a,rect(250,0,60,60)));
  }]
 );
 export const browserTests=[
