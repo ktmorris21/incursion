@@ -93,6 +93,7 @@ export class BattlefieldRenderer {
  this.motion.retain(live);this.commandMarkers.update(effectItems,selected,this.camera.zoom);
  const chosen=state.entities.find(e=>e.id===selected&&this.contacts.has(e.id)),range=chosen?COMBAT.classes[chosen.kind].range*sensorFactor(state.map,chosen):0;
  this.terrain.update(state.map,visualTime,chosen?.route?.points??(chosen?.destination?[chosen.destination]:null),chosen?poseAt(chosen,alpha):null,this.showPaths);this.rangeRing.visible=this.ranges&&range>0;if(this.rangeRing.visible){const p=poseAt(chosen,alpha);this.rangeRing.position.set(p.x,.1,p.y);this.rangeRing.scale.set(range,range,1);this.rangeRing.material.color.setHex(chosen.faction==='friendly'?0x70d9e9:0xf4779d);}
+ if(state.map){for(let i=this.effects.events.length-1;i>=0;i--){const f=this.effects.events[i],e=f.e;const hidden=state.entities.some(a=>(a.id===e.id||a.id===e.source)&&!this.contacts.has(a.id));if(hidden){this.effects.root.remove(f.g);this.effects.events.splice(i,1);}}}
  this.effects.update(visualTime,effectItems,this.quality);
  this.gl.render(this.scene,this.view);
  const visible=new Set();
@@ -107,7 +108,7 @@ export class BattlefieldRenderer {
  }
  for(const el of [...this.overlay.children])if(!visible.has(el.dataset.id))el.remove();
  }
- addEvents(events,time,state){this.effects.addEvents(state?.map?events.filter(e=>this.contacts.has(e.id)&&(e.type!=='hit'||this.contacts.has(e.source))):events,time);}
+ addEvents(events,time,state){const seen=id=>{const e=state?.entities.find(a=>a.id===id);return e?detected(state,e):this.contacts.has(id);};this.effects.addEvents(state?.map?events.filter(e=>seen(e.id)&&(e.type!=='hit'||seen(e.source))):events,time);}
  reset(){this.terrain.clear();this.contacts.clear();this.commandMarkers.clear();this.visualTime=0;this.motion.clear();this.effects.reset();this.rangeRing.visible=false;for(const o of this.objects.values())this.scene.remove(o);this.objects.clear();this.registry.clear();this.overlay.replaceChildren();}
  dispose(){this.reset();this.terrain.dispose();this.commandMarkers.dispose();this.effects.dispose();this.rangeRing.geometry.dispose();this.rangeRing.material.dispose();this.stars.geometry.dispose();this.stars.material.dispose();this.grid.geometry.dispose();this.grid.material.dispose();this.gl.dispose();this.overlay.remove();}
 }
