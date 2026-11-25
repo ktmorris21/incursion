@@ -124,6 +124,29 @@ coreTests.push(
   }eq(results[0],results[1]);eq(results[0],results[2]);assert(results[0].outcome!==null);for(const k of ['carrier','missile','destroyer','frigate'])assert(kinds.has(k),'Missing '+k);
  }]
 );
+coreTests.push(['3D fighters: persistent escort, travel, targeted strikes, pause, return and cleanup',()=>{
+ const s=makeBattle('carrier'),[carrier,enemy]=s.entities,fx=new CombatEffects(new T.Scene());
+ carrier.x=carrier.prevX=100;carrier.y=carrier.prevY=100;enemy.x=enemy.prevX=580;enemy.y=enemy.prevY=100;
+ const items=()=>s.entities.map(e=>({id:e.id,e,pose:poseAt(e,1)}));
+ try{
+  fx.update(0,items(),'low');const squad=fx.squadrons.get(carrier.id),craft=squad.fighters.map(f=>f.craft);
+  eq(craft.length,6);eq(fx.squadrons.size,1);assert(craft.every(f=>f.position.distanceTo(new T.Vector3(100,0,100))<65));
+  // Move parent while idle; the persistent escort follows.
+  carrier.x=carrier.prevX=150;fx.update(.25,items());near(squad.center.x,150);
+  carrier.target=enemy.id;const before=JSON.stringify(s);fx.update(.3,items());assert(squad.center.x>150&&squad.center.x<580);
+  let shots=0;
+  for(let i=7;i<=100;i++){fx.update(i*.05,items(),'high');shots+=squad.fighters.filter(f=>f.bolt.visible).length;}
+  near(squad.center.x,580);assert(shots>0);assert(squad.fighters.every(f=>f.craft.position.distanceTo(new T.Vector3(580,0,100))<80));
+  eq(JSON.stringify(s),before);assert(squad.fighters.every((f,i)=>f.craft===craft[i]));
+  const frozen=craft.map(f=>f.position.toArray());fx.update(5,items(),'low');eq(craft.map(f=>f.position.toArray()),frozen);
+  // A destroyed target must not leave attacking fighters or bolts behind.
+  destroy(s,enemy.id);for(let i=101;i<=160;i++)fx.update(i*.05,items());
+  near(squad.center.x,150);eq(squad.targetId,null);assert(squad.fighters.every(f=>!f.bolt.visible));
+  assert(squad.fighters.every((f,i)=>f.craft===craft[i]));
+  destroy(s,carrier.id);fx.update(8.05,items());eq(fx.squadrons.size,0);assert(!squad.g.parent);
+  fx.update(9,[]);fx.reset();eq(fx.root.children.length,0);
+ }finally{fx.dispose();}
+}]);
 export const browserTests=[
  ['WebGL: live combat draws effects and health overlays at all qualities',()=>{const canvas=document.createElement('canvas'),c=new Camera(800,500),r=new BattlefieldRenderer(canvas,c),s=makeBattle();applyCommand(s,{type:'engage'});try{for(const q of ['low','medium','high']){r.resize(800,500,1,q);for(let i=0;i<40;i++){step(s);r.addEvents(drainEvents(s),s.time);r.draw(s,1);}assert(r.gl.info.render.triangles>0);assert(r.gl.getContext().getError()===0);}assert(r.overlay.children.length>0);assert(r.effects.materials.size>0);r.reset();eq(r.effects.events.length,0);eq(r.effects.root.children.length,0);}finally{r.dispose();}}],
  ['WebGL: models render, pick and resize without mutating simulation',()=>{const canvas=document.createElement('canvas'),c=new Camera(800,500),r=new BattlefieldRenderer(canvas,c),s=makeDemo(),before=JSON.stringify(s);r.resize(800,500,2,'high');r.draw(s,1);eq([canvas.width,canvas.height],[1600,1000]);assert(r.gl.info.render.triangles>0);assert(r.gl.getContext().getError()===0);const e=s.entities[0];c.focus(e.x,e.y);r.draw(s,1);assert(r.pick(400,250)!==null);r.resize(390,844,3,'medium');r.draw(s,1);eq([canvas.width,canvas.height],[585,1266]);eq(JSON.stringify(s),before);r.dispose();eq(r.registry.cache.size,0);}],
