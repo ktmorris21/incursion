@@ -36,7 +36,7 @@ export class TerrainView{
     samples.push({x,y,s,dense});i++;
    }
   }
-  if(samples.length){const inst=new T.InstancedMesh(rockGeo,rockMat,samples.length),o=new T.Object3D();samples.forEach(({x,y,s,dense},i)=>{o.position.set(x,s*.18,y);o.scale.set(s,s*(.6+rng()*.6),s*(.65+rng()*.5));o.rotation.set(rng()*3,rng()*6,rng()*3);o.updateMatrix();inst.setMatrixAt(i,o.matrix);inst.setColorAt(i,new T.Color().setHSL(.09,.12+rng()*.12,(dense?.42:.35)+rng()*.28));});inst.instanceMatrix.needsUpdate=true;inst.computeBoundingSphere();this.root.add(inst);}
+  if(samples.length){const inst=this.own(new T.InstancedMesh(rockGeo,rockMat,samples.length)),o=new T.Object3D();samples.forEach(({x,y,s,dense},i)=>{o.position.set(x,s*.18,y);o.scale.set(s,s*(.6+rng()*.6),s*(.65+rng()*.5));o.rotation.set(rng()*3,rng()*6,rng()*3);o.updateMatrix();inst.setMatrixAt(i,o.matrix);inst.setColorAt(i,new T.Color().setHSL(.09,.12+rng()*.12,(dense?.42:.35)+rng()*.28));});inst.instanceMatrix.needsUpdate=true;inst.computeBoundingSphere();this.root.add(inst);}
   for(const z of map.nebula)region(z,0x553887,.18,0x917abf,-7);
   for(const z of map.sparse)region(z,0x968262,.10,0xa99570,-3);
   for(const z of map.dense)region(z,0x544940,.32,0xd5a879,-2);
