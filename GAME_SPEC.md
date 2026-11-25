@@ -389,6 +389,8 @@ Deliver a directly servable application with modular JavaScript, pinned local Th
 
 Deliver three combat classes for each faction plus friendly command frigate, recognizable heading-aware 3D models, spawn/position/reset controls and controlled duels and fleet battles. Implement nearest eligible targeting, counter matrix, shield/hull damage, destruction and combat events. Show cosmetic fighter swarms, missile salvos, beams, shield impacts, engine trails and explosions from this milestone onward. Test neutral/same-class damage, each intended counter, equal-cost engagements, range differences, no friendly fire and identical results across graphical quality. Use a documented sandbox energy fixture for regeneration until the full economy is integrated.
 
+**Sandbox command presentation preview:** friendly combat escorts patrol slowly around a friendly command frigate when idle, follow its movement, break patrol for the existing sandbox combat behavior, and reform after combat. A persistent, selectable segmented command insignia highlights the frigate independently of labels and weapon-range overlays. Select the frigate to position the group; subordinate ships remain inspectable, with manual sandbox positioning retained for uncommanded duels and hostile fixtures. Patrol motion uses authoritative planar coordinates to avoid visual/weapon-position divergence. This is not the Milestone 4 fleet assignment, capacity, navigation, command-loss or engagement-leash system.
+
 **Review gate:** watch battles and assess silhouettes, visual spectacle, combat readability and initial counter balance before expanding the game.
 
 #### Milestone 3 — Battlefield generation
