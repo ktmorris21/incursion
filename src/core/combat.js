@@ -1,12 +1,13 @@
 import {COMBAT,CONFIG} from '../config.js';
 import {clamp} from './math.js';
+import {speedFactor,sensorFactor,clearance,segmentClear,routeWaypoint,navigableStep,nearestOpen} from './terrain.js';
 export const stats=e=>COMBAT.classes[e.kind];
 export const multiplier=(a,b)=>COMBAT.matrix[a]?.[b]??1;
 export const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 export function initCombat(e){const c=stats(e);return Object.assign(e,{shield:c.shield,hull:c.hull,maxShield:c.shield,maxHull:c.hull,lastDamage:-1e9,nextAttack:0,target:null,destination:null,damageDone:0});}
-export function nearest(a,entities,range=Infinity,detect=true){
+export function nearest(a,entities,range=Infinity,detect=true,map=null){
  let target=null,best=Infinity;
- for(const b of entities){if(a.id===b.id||a.faction===b.faction||b.hull<=0||b.invulnerable)continue;const d=distance(a,b);if(d>range+1e-8||(detect&&d>stats(a).sensor+1e-8))continue;if(d<best-1e-8||(Math.abs(d-best)<=1e-8&&(!target||b.id<target.id))){target=b;best=d;}}
+ for(const b of entities){if(a.id===b.id||a.faction===b.faction||b.hull<=0||b.invulnerable)continue;const d=distance(a,b),factor=sensorFactor(map,a);if(d>range*factor+1e-8||(detect&&d>stats(a).sensor*factor+1e-8))continue;if(d<best-1e-8||(Math.abs(d-best)<=1e-8&&(!target||b.id<target.id))){target=b;best=d;}}
  return target;
 }
 export function damage(state,a,b,amount){
@@ -56,11 +57,12 @@ export function patrolGoal(e,from,positions,dt){
 // No collision damage or forces on the immobile station. Give command orders priority
 // over escorts when they are close, and divide corrections between ordinary hulls.
 export const separationDistance=(a,b)=>CONFIG.separation.radii[a.kind]+CONFIG.separation.radii[b.kind]+CONFIG.separation.gap;
-export function separateShips(entities,dt){
+export function separateShips(entities,dt,map=null){
  const live=entities.filter(e=>e.hull>0).sort((a,b)=>a.id-b.id),budget=new Map(live.map(e=>[e.id,CONFIG.separation.correctionSpeed*dt]));
  const move=(e,dx,dy,amount)=>{
   const n=Math.min(amount,budget.get(e.id));if(n<=0)return 0;
   const x=clamp(e.x+dx*n,0,CONFIG.world.width),y=clamp(e.y+dy*n,0,CONFIG.world.height),actual=Math.hypot(x-e.x,y-e.y);
+  if(map&&!segmentClear(map,e,{x,y},clearance(e)))return 0;
   e.x=x;e.y=y;budget.set(e.id,Math.max(0,budget.get(e.id)-actual));return actual;
  };
  for(let pass=0;pass<CONFIG.separation.passes;pass++){
@@ -82,9 +84,31 @@ export function combatStep(state,dt,destroy){
  const entities=state.entities,positions=entities.map(e=>({...e}));
  if(!state.engaged)preparePatrols(entities,positions);
  // Simultaneous movement proposals avoid faction order advantage.
- for(const e of entities){if(e.hull<=0||e.kind==='station')continue;const from=positions.find(p=>p.id===e.id);if((state.engaged||e.destination)&&e.patrol)e.patrol.active=false;const patrol=!state.engaged&&!e.destination?patrolGoal(e,from,positions,dt):null;const target=e.destination??(state.engaged&&stats(e).damage?nearest(from,positions,Infinity,false):patrol);if(!target)continue;const d=distance(from,target);if(d<1e-8){if(e.destination)e.destination=null;continue;}e.heading=Math.atan2(target.y-from.y,target.x-from.x);const stop=e.destination||patrol?0:stats(e).range*.98,speed=patrol&&!patrol.leaderMoving?CONFIG.patrol.settleSpeed:COMBAT.speed,travel=Math.min(speed*dt,Math.max(0,d-stop));e.x=clamp(from.x+Math.cos(e.heading)*travel,0,CONFIG.world.width);e.y=clamp(from.y+Math.sin(e.heading)*travel,0,CONFIG.world.height);if(e.destination&&distance(e,e.destination)<.01)e.destination=null;}
- separateShips(entities,dt);
- for(const e of entities){e.target=null;if(!state.engaged||e.hull<=0||!stats(e).damage||e.invulnerable)continue;const c=stats(e),target=nearest(e,entities,c.range);if(!target)continue;e.target=target.id;if(state.time+1e-8<e.nextAttack)continue;e.nextAttack=state.time+c.interval;damage(state,e,target,c.damage*multiplier(e.kind,target.kind));}
+ for(const e of entities){
+  if(e.hull<=0||e.kind==='station')continue;
+  const from=positions.find(p=>p.id===e.id);
+  if((state.engaged||e.destination)&&e.patrol)e.patrol.active=false;
+  const patrol=!state.engaged&&!e.destination?patrolGoal(e,from,positions,dt):null;
+  const target=e.destination??(state.engaged&&stats(e).damage?nearest(from,positions,Infinity,false):patrol);
+  if(!target)continue;
+  const d=distance(from,target),stop=e.destination||patrol?0:stats(e).range*sensorFactor(state.map,from)*.98;
+  if(d<1e-8){if(e.destination)e.destination=null;continue;}
+  const desired=state.map&&stop>0?{x:target.x+(from.x-target.x)*Math.min(1,stop/d),y:target.y+(from.y-target.y)*Math.min(1,stop/d)}:target;
+  const speed=(patrol&&!patrol.leaderMoving?CONFIG.patrol.settleSpeed:COMBAT.speed)*speedFactor(state.map,from);
+  if(state.map){
+   if(d<=stop&&!e.destination&&!patrol){e.heading=Math.atan2(target.y-from.y,target.x-from.x);continue;}
+   const waypoint=routeWaypoint(state.map,e,desired,state.tick);if(!waypoint)continue;
+   const p=navigableStep(state.map,e,waypoint,speed*dt);
+   if(distance(e,p)>1e-8)e.heading=Math.atan2(p.y-e.y,p.x-e.x);
+   e.x=p.x;e.y=p.y;
+  }else{
+   e.heading=Math.atan2(target.y-from.y,target.x-from.x);const travel=Math.min(speed*dt,Math.max(0,d-stop));
+   e.x=clamp(from.x+Math.cos(e.heading)*travel,0,CONFIG.world.width);e.y=clamp(from.y+Math.sin(e.heading)*travel,0,CONFIG.world.height);
+  }
+  if(e.destination&&distance(e,e.destination)<.01){e.destination=null;e.route=null;}
+ }
+ separateShips(entities,dt,state.map);
+ for(const e of entities){e.target=null;if(!state.engaged||e.hull<=0||!stats(e).damage||e.invulnerable)continue;const c=stats(e),target=nearest(e,entities,c.range,true,state.map);if(!target)continue;e.target=target.id;if(state.time+1e-8<e.nextAttack)continue;e.nextAttack=state.time+c.interval;damage(state,e,target,c.damage*multiplier(e.kind,target.kind));}
  for(const e of [...entities])if(e.hull<=0)destroy(state,e.id);
  regenerate(state,dt);
  if(state.engaged){const f=entities.some(e=>e.faction==='friendly'),h=entities.some(e=>e.faction==='hostile');if(!f||!h){state.engaged=false;state.outcome=f?'Friendly victory':h?'Hostile victory':'Mutual destruction';}}
