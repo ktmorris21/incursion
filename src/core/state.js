@@ -67,6 +67,6 @@ export function makeBattle(preset='fleet',close=false){
  const pair={carrier:['carrier','missile'],missile:['missile','destroyer'],destroyer:['destroyer','carrier']},gap=close?180:1200;
  const add=(kind,faction,x,y)=>spawn(s,{kind,faction,x,y,heading:faction==='friendly'?0:Math.PI});
  if(Object.hasOwn(pair,preset)){add(pair[preset][0],'friendly',900-gap/2,900);add(pair[preset][1],'hostile',900+gap/2,900);}
- else if(preset==='fleet'){for(const faction of ['friendly','hostile']){const sign=faction==='friendly'?-1:1;for(let i=0;i<6;i++)add(['carrier','missile','destroyer'][i%3],faction,900+sign*(510+(i%2)*80),900+(Math.floor(i/2)-1)*125);}add('frigate','friendly',275,900);}
+ else if(preset==='fleet'){const cx=390,cy=900;for(let i=0;i<6;i++){const kind=['carrier','missile','destroyer'][i%3],a=i*Math.PI/3,r=CONFIG.patrol.radii[kind];spawn(s,{kind,faction:'friendly',x:cx+r*Math.cos(a),y:cy+r*Math.sin(a),heading:a+Math.PI/2});}for(let i=0;i<6;i++)add(['carrier','missile','destroyer'][i%3],'hostile',900+510+(i%2)*80,900+(Math.floor(i/2)-1)*125);add('frigate','friendly',cx,cy);}
  drainEvents(s);return s;
 }
