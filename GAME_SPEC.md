@@ -473,14 +473,14 @@ These values are starting points selected to make the initial game implementable
 
 ### 15.1 Baseline combat and asset configuration
 
-World distance units are arbitrary; time is simulation seconds. DPS below is descriptive (damage / interval). All ship normal speeds initially 90 units/s (provisional tuning accepted for the visual review; originally 60). Friendly and hostile main combat classes use the same base values. Enemy hull recovery is disabled regardless of table rates.
+World distance units are arbitrary; time is simulation seconds. DPS below is descriptive (damage / interval). All ship normal speeds initially 270 units/s (Milestone 2 trial tuning at user request; previously 90). Friendly and hostile main combat classes use the same base values. Enemy hull recovery is disabled regardless of table rates.
 
 | Ship | Shield HP | Hull HP | Damage / interval (s) | DPS | Range | Sensor | Cost E | Build s |
 |---|---:|---:|---|---:|---:|---:|---:|---:|
-| Light carrier | 80 | 120 | 15 / 0.5 | 30 | 160 | 260 | 1,500 | 10 |
-| Missile cruiser | 120 | 180 | 30 / 2 | 15 | 220 | 300 | 1,500 | 10 |
-| Destroyer | 160 | 240 | 22 / 1 | 22 | 110 | 230 | 1,500 | 10 |
-| Command frigate | 200 | 300 | 8 / 1 | 8 | 130 | 300 | 6,000 | 30 |
+| Light carrier | 80 | 120 | 15 / 0.5 | 30 | 320 | 520 | 1,500 | 10 |
+| Missile cruiser | 120 | 180 | 30 / 2 | 15 | 440 | 600 | 1,500 | 10 |
+| Destroyer | 160 | 240 | 22 / 1 | 22 | 220 | 460 | 1,500 | 10 |
+| Command frigate | 200 | 300 | 8 / 1 | 8 | 260 | 600 | 6,000 | 30 |
 | Miner | 40 | 100 | — | 0 | 0 | 160 | 1,000 | 8 |
 | Constructor | 40 | 100 | — | 0 | 0 | 160 | 1,000 | 8 |
 
@@ -490,9 +490,11 @@ World distance units are arbitrary; time is simulation seconds. DPS below is des
 | Shipyard | 200 | 400 | — | 0 | 220 | 200 | 3,000 | 15 |
 | Energy storage | 100 | 250 | — | 0 | 160 | 160 | 1,200 | 10 |
 | Sensor station | 80 | 160 | — | 0 | 550 | 180 | 1,000 | 6 |
-| Missile battery | 150 | 220 | 36 / 2 | 250 | 300 | 160 | 1,200 | 8 |
-| Beam turret | 200 | 320 | 26 / 1 | 130 | 230 | 160 | 1,200 | 8 |
+| Missile battery | 150 | 220 | 36 / 2 | 500 | 600 | 160 | 1,200 | 8 |
+| Beam turret | 200 | 320 | 26 / 1 | 260 | 460 | 160 | 1,200 | 8 |
 | Barrier post | 100 | 180 | — | 0 | 100 | 100 | 400 | 4 |
+
+Milestone 2 naval-combat trial: ship movement is three times the preceding 90-unit/s baseline, and mobile weapon/sensor ranges are twice their previous values. Static missile/beam range and sensor values are proportionally adjusted planning defaults to preserve their intended advantage; towers are not implemented at this gate. Reevaluate speed, range, map size, travel time and later strategic radii after playtesting. Damage, intervals, costs, HP and counter multipliers are unchanged.
 
 Suggested common regeneration defaults: shield 8% maximum HP/sec, hull 1% maximum HP/sec, both begin 4 seconds after last damage; use derived HP/s internally. Shield cost 0.5 E/HP and hull cost 2 E/HP. These are per-asset configurable. Friendly hull and shields may regenerate simultaneously once eligible. Tune repair demand so major engagements create noticeable energy competition. Initial counter tests must include range effects: the 2×/0.75× multipliers alone do not guarantee every matchup at every distance. Do not eliminate range/positioning to enforce a universal outcome.
 
@@ -502,7 +504,7 @@ Suggested common regeneration defaults: shield 8% maximum HP/sec, hull 1% maximu
 |---|---|
 | Map dimensions | 1,800 × 1,800 world units |
 | Navigation cell | 20 units; adjust for collision geometry |
-| Normal ship movement | 90 units/s (provisional visual-feedback tuning) |
+| Normal ship movement | 270 units/s (Milestone 2 trial tuning) |
 | Sparse asteroid speed | 0.65× |
 | Nebula sensor and targeting | 0.65× when source is within nebula |
 | Formation / engagement radius | 90 / 250 units |
