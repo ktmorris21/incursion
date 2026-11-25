@@ -4,8 +4,8 @@ import {headingFrame} from './projection.js';
 
 // Artwork lives entirely in the rendering layer. These are display dimensions, not hitboxes.
 const PALETTES={
-  friendly:{base:'#647f98',light:'#b6d1e3',dark:'#263c51',edge:'#172838',panel:'#3d566b',accent:'#56edff',glow:'#15b9f6',shade:'#0d1927'},
-  hostile:{base:'#765469',light:'#c49aa5',dark:'#3c263f',edge:'#281c35',panel:'#583b58',accent:'#ff8199',glow:'#f43d73',shade:'#1b1127'}
+  friendly:{base:'#69737c',light:'#a8b1b8',dark:'#20262d',edge:'#14191e',panel:'#424950',accent:'#9beaff',glow:'#15b9f6',shade:'#0d1927'},
+  hostile:{base:'#55515b',light:'#a39b9f',dark:'#251f2a',edge:'#17151b',panel:'#4b414b',accent:'#ff6889',glow:'#f43d73',shade:'#1b1127'}
 };
 const OUTLINES={
   frigate:[[-43,-12],[-29,-22],[13,-22],[44,-10],[57,0],[44,10],[13,22],[-29,22],[-43,12]],
@@ -35,17 +35,17 @@ function paint(kind,faction,heading){
   function path(points,z){ctx.beginPath();for(let i=0;i<points.length;i++){const [x,y]=point(points[i],z);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);}ctx.closePath();}
   function flat(points,z,fill,stroke=null,width=.65){path(points,z);ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=width;ctx.stroke();}}
   function line(points,z,color,width=1){ctx.beginPath();for(let i=0;i<points.length;i++){const [x,y]=point(points[i],z);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);}ctx.lineWidth=width;ctx.strokeStyle=color;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();}
-  function glow(points,z,width=1.9){ctx.save();ctx.shadowColor=palette.glow;ctx.shadowBlur=7*ppu;line(points,z,palette.accent,width);ctx.restore();}
+  function glow(points,z,width=1.9){ctx.save();ctx.shadowColor=palette.glow;ctx.shadowBlur=3*ppu;line(points,z,palette.accent,width*.65);ctx.restore();}
   function solid(points,z,thickness,top=palette.base){
     // Paint only visible skirt faces, then a top surface with consistent screen-space lighting.
     const sides=[];
     for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length],p=point(a,z),q=point(b,z);if(q[0]<p[0])sides.push({p,q,A:point(a,z-thickness),B:point(b,z-thickness),depth:(p[1]+q[1])/2});}
     sides.sort((a,b)=>a.depth-b.depth);
     for(const s of sides){ctx.beginPath();ctx.moveTo(...s.p);ctx.lineTo(...s.q);ctx.lineTo(...s.B);ctx.lineTo(...s.A);ctx.closePath();ctx.fillStyle=palette.dark;ctx.fill();ctx.strokeStyle=palette.edge;ctx.lineWidth=.8;ctx.stroke();}
-    flat(points,z,top,palette.edge,1.15);
+    flat(points,z,top,palette.edge,.65);
     // Directional highlight is always lit from upper left of the screen.
-    path(points,z);const g=ctx.createLinearGradient(-r*.7,-r*.65,r*.65,r*.55);g.addColorStop(0,'rgba(225,248,255,.32)');g.addColorStop(.48,'rgba(255,255,255,.025)');g.addColorStop(1,'rgba(0,0,0,.42)');ctx.fillStyle=g;ctx.fill();
-    for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length],p=point(a,z),q=point(b,z);if(q[0]>p[0])line([a,b],z,'rgba(220,240,255,.38)',.7);}
+    path(points,z);const g=ctx.createLinearGradient(-r*.7,-r*.65,r*.65,r*.55);g.addColorStop(0,'rgba(225,248,255,.18)');g.addColorStop(.48,'rgba(255,255,255,.025)');g.addColorStop(1,'rgba(0,0,0,.42)');ctx.fillStyle=g;ctx.fill();
+    for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length],p=point(a,z),q=point(b,z);if(q[0]>p[0])line([a,b],z,'rgba(220,240,255,.26)',.45);}
   }
   function engine(x,y,w=11,h=7,z=4){solid(rect(x,y-h/2,w,h),z,3,palette.dark);flat(rect(x+1,y-h/2+1,2,h-2),z+.1,palette.accent);glow([[x,y-h/2+1],[x,y+h/2-1]],z,2.2);}
   function vents(x,y,count,z){for(let i=0;i<count;i++)flat(rect(x+i*4,y,1.7,7),z,palette.shade);}
@@ -91,7 +91,8 @@ function paint(kind,faction,heading){
       for(const p of [[-27,-6],[-27,6],[14,-5],[14,5]])rivet(...p,6.2);
     }
   }
-  return {image:canvas,source:null,width:size/ppu,height:size/ppu,anchorX:.5,anchorY:.5,hitRadius:kind==='station'?72:r*.7,attachmentPoints:{engine:[-35,0],weapon:[45,0]}};
+  const visualScale=kind==='station'?.72:CONFIG.visuals.shipScale;
+  return {image:canvas,source:null,width:size/ppu*visualScale,height:size/ppu*visualScale,anchorX:.5,anchorY:.5,hitRadius:(kind==='station'?72:r*.7)*visualScale,attachmentPoints:{engine:[-35,0],weapon:[45,0]}};
 }
 
 // External assets are optional and entirely cosmetic. An atlas is a horizontal or grid sequence.
