@@ -1,0 +1,1 @@
+import {run} from './suite.js';let rows=await run(r=>console.log(`${r.pass?'PASS':'FAIL'} ${r.name} (${r.ms.toFixed(1)} ms) ${r.error||''}`));console.log(`${rows.filter(r=>r.pass).length}/${rows.length} passed`);if(rows.some(r=>!r.pass))process.exitCode=1;
