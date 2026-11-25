@@ -21,24 +21,69 @@ export function regenerate(state,dt){
 }
 // Idle sandbox escorts, not the later fleet assignment/engagement-leash system.
 export const isEscort=e=>e.faction==='friendly'&&Object.hasOwn(CONFIG.patrol.radii,e.kind);
-export function patrolGoal(e,from,positions,dt){
- if(!isEscort(e))return null;
+// Assign one stable, evenly spaced angular slot per surviving escort. Preserve
+// circular order and minimize angular travel when membership changes/reforming.
+export function preparePatrols(entities,positions){
  const leaders=positions.filter(p=>p.kind==='frigate'&&p.faction==='friendly'&&p.hull>0);
- const leader=leaders.find(p=>p.id===e.patrol?.leaderId)??leaders.sort((a,b)=>distance(from,a)-distance(from,b)||a.id-b.id)[0];
+ const groups=new Map(),byId=new Map(positions.map(p=>[p.id,p]));
+ for(const e of entities){
+  if(!isEscort(e)||e.hull<=0||e.destination)continue;
+  const from=byId.get(e.id),leader=leaders.find(p=>p.id===e.patrol?.leaderId)??leaders.slice().sort((a,b)=>distance(from,a)-distance(from,b)||a.id-b.id)[0];
+  if(!leader){e.patrol=null;continue;}
+  if(!groups.has(leader.id))groups.set(leader.id,{leader,members:[]});
+  const dx=from.x-leader.x,dy=from.y-leader.y;
+  groups.get(leader.id).members.push({e,bearing:Math.hypot(dx,dy)>1e-8?Math.atan2(dy,dx):0});
+ }
+ for(const {leader,members} of groups.values()){
+  const signature=members.map(m=>m.e.id).sort((a,b)=>a-b).join(',');
+  if(members.every(({e})=>e.patrol?.active&&e.patrol.leaderId===leader.id&&e.patrol.signature===signature))continue;
+  members.sort((a,b)=>a.bearing-b.bearing||a.e.id-b.e.id);
+  const n=members.length,spacing=2*Math.PI/n;
+  const base=members.reduce((sum,m,i)=>sum+m.bearing-i*spacing,0)/n;
+  members.forEach(({e},i)=>{e.patrol={leaderId:leader.id,phase:base+i*spacing,active:true,signature,count:n};});
+ }
+}
+export function patrolGoal(e,from,positions,dt){
+ if(!isEscort(e)||!e.patrol?.active)return null;
+ const leader=positions.find(p=>p.id===e.patrol.leaderId&&p.hull>0);
  if(!leader){e.patrol=null;return null;}
- const radius=CONFIG.patrol.radii[e.kind];
- // Retain leader between ticks; rejoin smoothly from current bearing after a fight.
- const dx=from.x-leader.x,dy=from.y-leader.y;
- if(!e.patrol||e.patrol.leaderId!==leader.id||!e.patrol.active)
-  e.patrol={leaderId:leader.id,phase:Math.hypot(dx,dy)>1?Math.atan2(dy,dx):e.id*2.399963,active:true};
+ const radius=Math.max(CONFIG.patrol.radii[e.kind],(e.patrol.count>6?88/(2*Math.sin(Math.PI/e.patrol.count)):0));
  e.patrol.phase+=CONFIG.patrol.rate*dt;
  const x=clamp(leader.x+radius*Math.cos(e.patrol.phase),0,CONFIG.world.width),y=clamp(leader.y+radius*Math.sin(e.patrol.phase),0,CONFIG.world.height);
- return {x,y,leaderMoving:Math.hypot(leader.x-leader.prevX,leader.y-leader.prevY)>0.1||!!leader.destination};
+ return {x,y,leaderMoving:!!leader.destination};
+}
+// A bounded, deterministic local relaxation after movement proposals, before firing.
+// No collision damage or forces on the immobile station. Give command orders priority
+// over escorts when they are close, and divide corrections between ordinary hulls.
+export const separationDistance=(a,b)=>CONFIG.separation.radii[a.kind]+CONFIG.separation.radii[b.kind]+CONFIG.separation.gap;
+export function separateShips(entities,dt){
+ const live=entities.filter(e=>e.hull>0).sort((a,b)=>a.id-b.id),budget=new Map(live.map(e=>[e.id,CONFIG.separation.correctionSpeed*dt]));
+ const move=(e,dx,dy,amount)=>{
+  const n=Math.min(amount,budget.get(e.id));if(n<=0)return 0;
+  const x=clamp(e.x+dx*n,0,CONFIG.world.width),y=clamp(e.y+dy*n,0,CONFIG.world.height),actual=Math.hypot(x-e.x,y-e.y);
+  e.x=x;e.y=y;budget.set(e.id,Math.max(0,budget.get(e.id)-actual));return actual;
+ };
+ for(let pass=0;pass<CONFIG.separation.passes;pass++){
+  for(let i=0;i<live.length;i++)for(let j=i+1;j<live.length;j++){
+   const a=live[i],b=live[j],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy),need=separationDistance(a,b)-d;
+   if(need<=.001)continue;
+   const angle=(a.id*1.618+b.id*2.399963)% (2*Math.PI),nx=d>1e-8?dx/d:Math.cos(angle),ny=d>1e-8?dy/d:Math.sin(angle);
+   const wa=a.kind==='station'?0:a.kind==='frigate'&&b.kind!=='frigate'&&b.kind!=='station'?0:1;
+   const wb=b.kind==='station'?0:b.kind==='frigate'&&a.kind!=='frigate'&&a.kind!=='station'?0:1;
+   if(!wa&&!wb)continue;
+   let left=need;
+   if(wa)left-=move(a,-nx,-ny,need*wa/(wa+wb));
+   if(wb)left-=move(b,nx,ny,Math.max(0,left));
+   if(wa&&left>0)move(a,-nx,-ny,left);
+  }
+ }
 }
 export function combatStep(state,dt,destroy){
  const entities=state.entities,positions=entities.map(e=>({...e}));
+ if(!state.engaged)preparePatrols(entities,positions);
  // Simultaneous movement proposals avoid faction order advantage.
  for(const e of entities){if(e.hull<=0||e.kind==='station')continue;const from=positions.find(p=>p.id===e.id);if((state.engaged||e.destination)&&e.patrol)e.patrol.active=false;const patrol=!state.engaged&&!e.destination?patrolGoal(e,from,positions,dt):null;const target=e.destination??(state.engaged&&stats(e).damage?nearest(from,positions,Infinity,false):patrol);if(!target)continue;const d=distance(from,target);if(d<1e-8){if(e.destination)e.destination=null;continue;}e.heading=Math.atan2(target.y-from.y,target.x-from.x);const stop=e.destination||patrol?0:stats(e).range*.98,speed=patrol&&!patrol.leaderMoving?CONFIG.patrol.settleSpeed:COMBAT.speed,travel=Math.min(speed*dt,Math.max(0,d-stop));e.x=clamp(from.x+Math.cos(e.heading)*travel,0,CONFIG.world.width);e.y=clamp(from.y+Math.sin(e.heading)*travel,0,CONFIG.world.height);if(e.destination&&distance(e,e.destination)<.01)e.destination=null;}
+ separateShips(entities,dt);
  for(const e of entities){e.target=null;if(!state.engaged||e.hull<=0||!stats(e).damage||e.invulnerable)continue;const c=stats(e),target=nearest(e,entities,c.range);if(!target)continue;e.target=target.id;if(state.time+1e-8<e.nextAttack)continue;e.nextAttack=state.time+c.interval;damage(state,e,target,c.damage*multiplier(e.kind,target.kind));}
  for(const e of [...entities])if(e.hull<=0)destroy(state,e.id);
  regenerate(state,dt);
