@@ -84,8 +84,8 @@ function connectivity(map){
 export function validateMap(map){
  const errors=[],c=connectivity(map);if(!c)return {ok:false,errors:['base blocked'],corridors:0};
  const reachable=p=>{const i=anchor(map,p,70,c.g);return i>=0&&!!c.seen[i];};
- for(const p of [...map.starts,...map.deposits,...map.portals,...map.portals.map(p=>({x:p.x-100,y:p.y}))])if(!reachable(p))errors.push('unreachable site');
- for(const p of [...map.starts,...map.deposits,...map.portals])if(!walkable(map,p,70))errors.push('blocked site');
+ for(const p of [...map.starts,...map.deposits,...map.portals,...(map.emergence??[]),...map.portals.map(p=>({x:p.x-100,y:p.y}))])if(!reachable(p))errors.push('unreachable site');
+ for(const p of [...map.starts,...map.deposits,...map.portals,...(map.emergence??[])])if(!walkable(map,p,70))errors.push('blocked site');
  const total=map.deposits.reduce((s,p)=>s+p.yield,0),outside=map.deposits.filter(p=>dist(p,map.base)>map.safeRadius).reduce((s,p)=>s+p.yield,0)/total;
  if(outside<.45||outside>.55)errors.push('yield split');
  const col=Math.floor(map.cut/CELL),runs=[];let len=0;
@@ -98,11 +98,12 @@ export function validateMap(map){
 function candidate(seed,archetype,attempt){
  const rng=seededRandom(seed+'|'+archetype+'|'+attempt),j=(v,n)=>v+(rng()-.5)*2*n,cut=j(930,50);
  const base={x:300,y:j(900,65)},safeRadius=420;
- const starts=[base,{x:480,y:base.y-180},{x:485,y:base.y+170},{x:220,y:base.y-260},{x:220,y:base.y+260}];
+ const cx=base.x+180,cy=base.y;
+ const starts=[base,{x:cx,y:cy},...['carrier','missile','destroyer'].map((kind,i)=>({x:cx+CONFIG.patrol.radii[kind]*Math.cos(i*2*Math.PI/3),y:cy+CONFIG.patrol.radii[kind]*Math.sin(i*2*Math.PI/3)})),{x:base.x-80,y:base.y-260},{x:base.x-80,y:base.y+260}];
  const deposits=[{x:130,y:base.y-165,yield:18},{x:130,y:base.y+165,yield:22},{x:1430,y:j(300,40),yield:19},{x:1430,y:j(1500,40),yield:21}];
  const portals=[{x:1630,y:300},{x:1630,y:900},{x:1630,y:1500}].map(p=>({...p,y:j(p.y,35)}));
- const dense=[];
- const add=(x,y,r)=>{const z={x,y,r};if([...starts,...deposits,...portals,...portals.map(p=>({x:p.x-100,y:p.y}))].every(p=>dist(p,z)>r+100))dense.push(z);};
+ const emergence=portals.flatMap(p=>[-100,0,100].map(dy=>({x:p.x,y:p.y+dy}))),dense=[];
+ const add=(x,y,r)=>{const z={x,y,r};if([...starts,...deposits,...portals,...emergence,...portals.map(p=>({x:p.x-100,y:p.y}))].every(p=>dist(p,z)>r+100))dense.push(z);};
  if(archetype==='Crossroads'){for(const y of [450,900,1350])add(cut,j(y,12),j(75,5));}
  else if(archetype==='Bastion'){for(const y of [125,290,460,1340,1510,1675])add(cut,j(y,15),j(116,8));}
  else if(archetype==='Frontier'){for(const y of [460,1120])add(cut,j(y,100),j(135,22));}
@@ -110,14 +111,17 @@ function candidate(seed,archetype,attempt){
  for(let i=0;i<3;i++){const x=j(i%2?1220:660,70),y=j([160,900,1640][i],55);if(Math.abs(x-cut)>200)add(x,y,j(55,12));}
  const sparse=Array.from({length:3},(_,i)=>({x:j(610+i*300,80),y:j([700,1350,380][i],100),rx:j(150,35),ry:j(110,25)}));
  const nebula=Array.from({length:2},(_,i)=>({x:j(820+i*410,120),y:j([1150,620][i],140),rx:j(230,40),ry:j(180,35)}));
- return {seed,archetype,attempt,base,safeRadius,cut,starts,deposits,portals,dense,sparse,nebula,activePortal:0};
+ return {seed,archetype,attempt,base,safeRadius,cut,starts,deposits,portals,emergence,dense,sparse,nebula,activePortal:Math.floor(rng()*portals.length)};
+}
+export function fallbackMap(seed,archetype){
+ const map=candidate('validated-fallback',archetype,0),validation=validateMap(map);
+ if(!validation.ok)throw Error('Invalid fallback: '+validation.errors.join(', '));
+ return {...map,seed:String(seed),validation,fallback:true};
 }
 export function generateMap(seed='incursion-01',archetype='Auto'){
  seed=String(seed);if(!ARCHETYPES.includes(archetype))archetype=ARCHETYPES[Math.floor(seededRandom(seed)()*ARCHETYPES.length)];
  for(let i=0;i<8;i++){const map=candidate(seed,archetype,i),validation=validateMap(map);if(validation.ok)return {...map,validation,fallback:false};}
- const map=candidate('validated-fallback',archetype,0),validation=validateMap(map);
- if(!validation.ok)throw Error('Invalid fallback: '+validation.errors.join(', '));
- return {...map,seed,validation,fallback:true};
+ return fallbackMap(seed,archetype);
 }
 export function detected(state,e){
  if(!state.map||e.faction==='friendly'||state.preview)return true;
