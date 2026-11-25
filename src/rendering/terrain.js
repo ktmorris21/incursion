@@ -3,7 +3,7 @@ import {seededRandom} from '../core/math.js';
 import {detected} from '../core/terrain.js';
 // Terrain geometry is derived from the authoritative map, not a separate collision model.
 export class TerrainView{
- constructor(scene){this.root=new T.Group();scene.add(this.root);this.map=null;this.resources=new Set();this.portals=[];this.path=null;}
+ constructor(scene){this.root=new T.Group();scene.add(this.root);this.map=null;this.resources=new Set();this.portals=[];this.path=null;this.pathKey='';}
  own(x){this.resources.add(x);return x;}
  mesh(geo,mat,x,y,z){const o=new T.Mesh(geo,mat);o.position.set(x,y,z);this.root.add(o);return o;}
  flatRing(x,y,rx,ry,color,opacity=.7,width=.015){
@@ -22,7 +22,7 @@ export class TerrainView{
   const rocks=(z,dense)=>{
    const rx=dense?z.r:z.rx,ry=dense?z.r:z.ry;
    const count=dense?Math.max(18,Math.round(z.r*z.r/320)):22;
-   for(let i=0;i<count;i++){const a=rng()*Math.PI*2,rad=Math.sqrt(rng())*.86,s=(dense?10:5)+rng()*(dense?18:9),x=z.x+rx*rad*Math.cos(a),y=z.y+ry*rad*Math.sin(a);
+   for(let i=0;i<count;i++){const a=rng()*Math.PI*2,s=(dense?10:5)+rng()*(dense?18:9),rad=Math.sqrt(rng())*Math.max(.1,1-s*1.2/Math.min(rx,ry)),x=z.x+rx*rad*Math.cos(a),y=z.y+ry*rad*Math.sin(a);
     const o=this.mesh(rockGeo,rockMat,x,s*.18,y);o.scale.set(s,s*(.6+rng()*.6),s*(.65+rng()*.5));o.rotation.set(rng()*3,rng()*6,rng()*3);}
   };
   for(const z of map.nebula){
@@ -41,10 +41,12 @@ export class TerrainView{
  update(map,time,route,position,showPath){
   this.setMap(map);if(!map)return;
   for(const p of this.portals)if(p.active)p.ring.material.opacity=.8+.15*Math.sin(time*2);
+  const key=showPath&&position&&route?.length?[position,...route].map(p=>Math.round(p.x)+','+Math.round(p.y)).join(';'):'';
+  if(key===this.pathKey)return;this.pathKey=key;
   if(this.path){this.root.remove(this.path);this.path.geometry.dispose();this.path.material.dispose();this.path=null;}
-  if(showPath&&position&&route?.length){const geo=new T.BufferGeometry().setFromPoints([position,...route].map(p=>new T.Vector3(p.x,2,p.y)));this.path=new T.Line(geo,new T.LineBasicMaterial({color:0x70e9ff}));this.root.add(this.path);}
+  if(key){const geo=new T.BufferGeometry().setFromPoints([position,...route].map(p=>new T.Vector3(p.x,2,p.y)));this.path=new T.Line(geo,new T.LineBasicMaterial({color:0x70e9ff}));this.root.add(this.path);}
  }
- clear(){if(this.path){this.path.geometry.dispose();this.path.material.dispose();this.path=null;}this.root.clear();for(const a of this.resources)a.dispose();this.resources.clear();this.portals=[];this.map=null;}
+ clear(){if(this.path){this.path.geometry.dispose();this.path.material.dispose();this.path=null;}this.root.clear();for(const a of this.resources)a.dispose();this.resources.clear();this.portals=[];this.map=null;this.pathKey='';}
  dispose(){this.clear();this.root.removeFromParent();}
 }
 export function drawMinimap(canvas,state,camera){
