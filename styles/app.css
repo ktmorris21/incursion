@@ -11,3 +11,15 @@
 @media(max-height:600px){.sandbox #sandboxStatus{display:block;font-size:11px;color:#a7dce8}.diagnostics{right:8px;top:62px;bottom:56px;max-height:none}}
 
 .ship-overlay{position:absolute;transform:translateX(-50%);font:10px system-ui;white-space:nowrap;text-align:center;pointer-events:none}.ship-label{background:#020408b0;padding:2px 4px;border-radius:2px}.ship-bars{width:31px;margin:0 auto 2px;display:grid;gap:2px}.ship-bar{height:3px;background:#101721;border:1px solid #324353;box-sizing:content-box}.ship-bar i{height:100%;display:block;background:#70dfff}.ship-bar.hull i{background:#7dd6a3}.ship-overlay.enemy .ship-bar.hull i{background:#f67c91}.ship-overlay.selected .ship-label,.ship-overlay.selected .ship-bars{outline:1px solid #b9eaff}.scene-label #battleStatus{display:inline-block;color:#9be5ef;font-weight:700;margin-right:6px}.scene-label #energy{display:block}.scene-label{max-width:225px}.sandbox{top:245px;max-height:calc(100% - 340px);overflow:auto}@media(max-height:600px){.sandbox{top:65px;max-height:calc(100% - 125px)}}@media(max-width:600px) and (min-height:601px){.sandbox{top:220px;max-height:40vh}}
+
+/* Milestone 3 map review */
+#mapTools{display:grid;gap:5px;margin-top:8px;padding-top:6px;border-top:1px solid #29404e}
+#mapTools[hidden],#mapLegend[hidden]{display:none}
+#mapTools input{min-width:0;width:100%;background:#0a1720;color:#cce5ef;border:1px solid #334b5a;padding:5px}
+#mapInfo{font-size:11px;margin:4px 0}
+.minimap-panel{position:absolute;right:14px;bottom:86px;width:158px;padding:8px;background:#07121de8;border:1px solid #304858;border-radius:8px;z-index:4}
+#minimap{display:block;width:100%;height:auto;cursor:crosshair;margin-top:6px;border:1px solid #304858;touch-action:none}
+.map-key{display:flex;flex-wrap:wrap;gap:4px 7px;margin-top:5px;font-size:10px;color:#a5b8ca}
+.map-key span:nth-child(1){color:#d5a879}.map-key span:nth-child(2){color:#a99570}.map-key span:nth-child(3){color:#ad92e0}.map-key span:nth-child(4){color:#49e8b4}.map-key span:nth-child(5){color:#c5a1ff}
+@media(max-height:650px){.minimap-panel{width:100px;bottom:65px}.map-key{display:none}.sandbox{max-height:calc(100dvh - 132px);overflow:auto}}
+@media(max-width:700px){.minimap-panel{width:94px;bottom:100px;right:6px}.map-key{display:none}}
