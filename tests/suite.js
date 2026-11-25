@@ -5,7 +5,7 @@ import {FixedClock} from '../src/core/clock.js';
 import {seededRandom} from '../src/core/math.js';
 import {Camera,canvasSize,resizeCanvas,depthSort,headingFrame} from '../src/rendering/projection.js';
 import {SpriteRegistry} from '../src/rendering/sprites.js';
-import {BattlefieldRenderer} from '../src/rendering/renderer.js';
+import {BattlefieldRenderer,PresentationMotion} from '../src/rendering/renderer.js';
 import {ModelRegistry} from '../src/rendering/models.js';
 import {CombatEffects} from '../src/rendering/effects.js';
 export function assert(ok,message='Assertion failed'){if(!ok)throw Error(message);}
@@ -132,21 +132,51 @@ coreTests.push(['3D fighters: persistent escort, travel, targeted strikes, pause
   fx.update(0,items(),'low');const squad=fx.squadrons.get(carrier.id),craft=squad.fighters.map(f=>f.craft);
   eq(craft.length,6);eq(fx.squadrons.size,1);assert(craft.every(f=>f.position.distanceTo(new T.Vector3(100,0,100))<65));
   // Move parent while idle; the persistent escort follows.
-  carrier.x=carrier.prevX=150;fx.update(.25,items());near(squad.center.x,150);
-  carrier.target=enemy.id;const before=JSON.stringify(s);fx.update(.3,items());assert(squad.center.x>150&&squad.center.x<580);
+  carrier.x=carrier.prevX=150;fx.update(.05,items());assert(squad.center.x>100&&squad.center.x<150);
+  for(let i=2;i<=30;i++)fx.update(i*.05,items());near(squad.center.x,150,.1);
+  carrier.target=enemy.id;const before=JSON.stringify(s);fx.update(1.55,items());assert(squad.center.x>150&&squad.center.x<170);
+  assert(squad.velocity.length()>0&&squad.velocity.length()<420);
   let shots=0;
-  for(let i=7;i<=100;i++){fx.update(i*.05,items(),'high');shots+=squad.fighters.filter(f=>f.bolt.visible).length;}
-  near(squad.center.x,580);assert(shots>0);assert(squad.fighters.every(f=>f.craft.position.distanceTo(new T.Vector3(580,0,100))<80));
+  for(let i=32;i<=130;i++){fx.update(i*.05,items(),'high');shots+=squad.fighters.filter(f=>f.bolt.visible).length;}
+  near(squad.center.x,580,.1);assert(shots>0);assert(squad.fighters.every(f=>f.craft.position.distanceTo(new T.Vector3(580,0,100))<90));
   eq(JSON.stringify(s),before);assert(squad.fighters.every((f,i)=>f.craft===craft[i]));
-  const frozen=craft.map(f=>f.position.toArray());fx.update(5,items(),'low');eq(craft.map(f=>f.position.toArray()),frozen);
+  const frozen=craft.map(f=>f.position.toArray());fx.update(6.5,items(),'low');eq(craft.map(f=>f.position.toArray()),frozen);
   // A destroyed target must not leave attacking fighters or bolts behind.
-  destroy(s,enemy.id);for(let i=101;i<=160;i++)fx.update(i*.05,items());
-  near(squad.center.x,150);eq(squad.targetId,null);assert(squad.fighters.every(f=>!f.bolt.visible));
+  destroy(s,enemy.id);for(let i=131;i<=200;i++)fx.update(i*.05,items());
+  near(squad.center.x,150,.1);eq(squad.targetId,null);assert(squad.fighters.every(f=>!f.bolt.visible));
   assert(squad.fighters.every((f,i)=>f.craft===craft[i]));
-  destroy(s,carrier.id);fx.update(8.05,items());eq(fx.squadrons.size,0);assert(!squad.g.parent);
-  fx.update(9,[]);fx.reset();eq(fx.root.children.length,0);
+  destroy(s,carrier.id);fx.update(10.05,items());eq(fx.squadrons.size,0);assert(!squad.g.parent);
+  fx.update(11,[]);fx.reset();eq(fx.root.children.length,0);
  }finally{fx.dispose();}
 }]);
+coreTests.push(
+ ['Presentation inertia: gradual starts/stops, bounded lag, pause, deterministic simulation',()=>{
+  const s=makeBattle('empty'),e=spawn(s,{kind:'miner',faction:'friendly',x:100,y:100}),m=new PresentationMotion();
+  applyCommand(s,{type:'position',id:e.id,x:370,y:100});const reference=JSON.stringify(s),p0=m.sample(e,poseAt(e,1),0);eq(JSON.stringify(s),reference);eq(p0.speed,0);
+  let first,cruise,last,previous=0;
+  for(let i=1;i<=40;i++){
+   step(s);const snapshot=JSON.stringify(s),p=m.sample(e,poseAt(e,1),s.time);eq(JSON.stringify(s),snapshot);
+   assert(Math.hypot(p.x-e.x,p.y-e.y)<=18.000001);assert(p.x>=previous);previous=p.x;
+   if(i===1)first=p;if(i===10)cruise=p;if(i===21)last=p;
+   if(i===40){near(p.x,370,.01);assert(p.speed<1);eq(m.sample(e,poseAt(e,1),s.time),p);}
+  }
+  assert(first.speed>0&&first.speed<COMBAT.speed);near(cruise.speed,COMBAT.speed,.01);assert(last.speed>0&&last.speed<COMBAT.speed);assert(first.pitch>0&&last.pitch<0);
+  m.retain(new Set());eq(m.poses.size,0);m.clear();
+ }],
+ ['3D fighters: smooth individual path variation and stable pause',()=>{
+  const s=makeBattle('carrier'),fx=new CombatEffects(new T.Scene()),[carrier]=s.entities;
+  const items=()=>s.entities.map(e=>({id:e.id,e,pose:poseAt(e,1)}));
+  try{
+   fx.update(0,items());const squad=fx.squadrons.get(carrier.id),radii=[],frames=[];
+   for(let i=0;i<=720;i++){fx.update(i/60,items());const p=squad.fighters.map(f=>f.craft.position.clone());radii.push(p.map(v=>v.distanceTo(squad.center)));
+    if(frames.length)for(let j=0;j<p.length;j++)assert(p[j].distanceTo(frames[frames.length-1][j])<4,'smooth motion');
+    frames.push(p);}
+   for(let j=0;j<6;j++){const v=radii.map(r=>r[j]);assert(Math.max(...v)-Math.min(...v)>4,'individual changing radius');}
+   assert(radii.some(r=>Math.abs(r[0]-r[1])>3),'not identical orbital tracks');
+   const snapshot=squad.fighters.map(f=>[f.craft.position.toArray(),f.craft.quaternion.toArray()]);fx.update(12,items());eq(squad.fighters.map(f=>[f.craft.position.toArray(),f.craft.quaternion.toArray()]),snapshot);
+  }finally{fx.dispose();}
+ }]
+);
 export const browserTests=[
  ['WebGL: live combat draws effects and health overlays at all qualities',()=>{const canvas=document.createElement('canvas'),c=new Camera(800,500),r=new BattlefieldRenderer(canvas,c),s=makeBattle();applyCommand(s,{type:'engage'});try{for(const q of ['low','medium','high']){r.resize(800,500,1,q);for(let i=0;i<40;i++){step(s);r.addEvents(drainEvents(s),s.time);r.draw(s,1);}assert(r.gl.info.render.triangles>0);assert(r.gl.getContext().getError()===0);}assert(r.overlay.children.length>0);assert(r.effects.materials.size>0);r.reset();eq(r.effects.events.length,0);eq(r.effects.root.children.length,0);}finally{r.dispose();}}],
  ['WebGL: models render, pick and resize without mutating simulation',()=>{const canvas=document.createElement('canvas'),c=new Camera(800,500),r=new BattlefieldRenderer(canvas,c),s=makeDemo(),before=JSON.stringify(s);r.resize(800,500,2,'high');r.draw(s,1);eq([canvas.width,canvas.height],[1600,1000]);assert(r.gl.info.render.triangles>0);assert(r.gl.getContext().getError()===0);const e=s.entities[0];c.focus(e.x,e.y);r.draw(s,1);assert(r.pick(400,250)!==null);r.resize(390,844,3,'medium');r.draw(s,1);eq([canvas.width,canvas.height],[585,1266]);eq(JSON.stringify(s),before);r.dispose();eq(r.registry.cache.size,0);}],
