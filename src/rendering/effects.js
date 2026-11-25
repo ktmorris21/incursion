@@ -108,7 +108,7 @@ export class CombatEffects {
    const seed=(item.id??e.id)*1.618+j*2.399963;
    fighters.push({craft,bolt,glow,seed,heading:null,bank:0,aimBlend:0});
   }
-  return {g,fighters,center:new T.Vector3(pose.x,0,pose.y),velocity:new T.Vector3(),heading:pose.heading,lastTime:time,phase:(item.id??e.id)*.77,attackBlend:0,targetId:null,faction:e.faction};
+  return {g,fighters,center:new T.Vector3(pose.x,0,pose.y),velocity:new T.Vector3(),lastGoal:new T.Vector3(pose.x,0,pose.y),heading:pose.heading,lastTime:time,phase:(item.id??e.id)*.77,attackBlend:0,targetId:null,faction:e.faction};
  }
  updateSquadrons(time,items){
   const byId=new Map(items.map(i=>[i.id,i])),live=new Set();
@@ -118,20 +118,21 @@ export class CombatEffects {
    if(squad&&squad.faction!==e.faction){this.root.remove(squad.g);this.squadrons.delete(id);squad=null;}
    if(!squad){squad=this.makeSquadron(item,time);this.squadrons.set(id,squad);}
    const candidate=byId.get(e.target),target=candidate&&candidate.e.faction!==e.faction&&candidate.e.hull>0?candidate:null;
-   const dt=Math.max(0,time-squad.lastTime);squad.lastTime=Math.max(time,squad.lastTime);squad.targetId=target?.id??null;
-   const goal=new T.Vector3(target?.pose.x??pose.x,0,target?.pose.y??pose.y);
+   const dt=Math.max(0,time-squad.lastTime);squad.lastTime=Math.max(time,squad.lastTime);
+   const targetId=target?.id??null,goal=new T.Vector3(target?.pose.x??pose.x,0,target?.pose.y??pose.y);
+   // Feed forward the moving carrier/target's velocity, rather than lagging far behind.
+   const goalVelocity=dt>0&&targetId===squad.targetId?goal.clone().sub(squad.lastGoal).divideScalar(dt).clampLength(0,270):new T.Vector3();
+   if(dt>0){squad.lastGoal.copy(goal);squad.targetId=targetId;}
    // Acceleration-limited steering and braking envelope. Substeps keep even
    // a slow render frame smooth, and the final small snap avoids overshoot.
    let remaining=Math.min(dt,.5);
    while(remaining>1e-8){
     const h=Math.min(remaining,1/60);remaining-=h;
     const delta=goal.clone().sub(squad.center),d=delta.length();
-    if(d<.08&&squad.velocity.length()<8){squad.center.copy(goal);squad.velocity.set(0,0,0);break;}
-    const desired=delta.multiplyScalar(d>0?Math.min(TRANSIT_SPEED,Math.sqrt(2*TRANSIT_ACCEL*d),d*13)/d:0);
+    if(d<.08&&squad.velocity.length()<1&&goalVelocity.length()<1){squad.center.copy(goal);squad.velocity.set(0,0,0);break;}
+    const desired=delta.multiplyScalar(6).add(goalVelocity).clampLength(0,TRANSIT_SPEED);
     const dv=desired.sub(squad.velocity),change=dv.length();if(change>TRANSIT_ACCEL*h)dv.multiplyScalar(TRANSIT_ACCEL*h/change);
-    squad.velocity.add(dv);const move=squad.velocity.clone().multiplyScalar(h),toGoal=goal.clone().sub(squad.center);
-    if(move.dot(toGoal)>0&&move.length()>=d&&d<TRANSIT_SPEED*h+1){squad.center.copy(goal);squad.velocity.set(0,0,0);break;}
-    squad.center.add(move);
+    squad.velocity.add(dv);squad.center.addScaledVector(squad.velocity,h);
    }
    const onStation=!!target&&squad.center.distanceTo(goal)<45,wanted=onStation?1:0;
    squad.attackBlend+=(wanted-squad.attackBlend)*(1-Math.exp(-4*dt));
@@ -144,7 +145,7 @@ export class CombatEffects {
     const f=squad.fighters[j],k=f.seed;
     // Smooth, bounded, individually phased harmonics give changing spacing,
     // wider/narrower passes and gentle lateral/vertical weaving without jitter.
-    const t=time,offset=.19*Math.sin(t*.73+k)+.085*Math.sin(t*1.41+k*2.1);
+    const t=squad.lastTime,offset=.19*Math.sin(t*.73+k)+.085*Math.sin(t*1.41+k*2.1);
     const angle=squad.phase+j*Math.PI*2/FIGHTERS+offset;
     const rx=48+22*blend+(5+4*blend)*Math.sin(t*.91+k*1.7),rz=39+7*blend+5*Math.sin(t*.67+k*2.3);
     const ca=Math.cos(angle),sa=Math.sin(angle),weave=3.5*Math.sin(t*1.28+k);
