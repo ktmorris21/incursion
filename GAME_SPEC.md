@@ -1,6 +1,6 @@
 # Incursion — Game specification
 
-**Version:** 1.1 — 2.5D rendering and staged implementation  
+**Version:** 1.2 — Planar 3D rendering and staged implementation  
 **Status:** Approved concept decisions consolidated for initial implementation  
 **Audience:** Codex and human developers  
 **Working title:** Incursion
@@ -31,7 +31,7 @@ The player starts with a command station, a small fleet and civilian support ves
 
 ### 2.1 Spatial model
 
-Gameplay occurs on a bounded two-dimensional plane in outer space. Render a sprite-based 2.5D battlefield using a fixed oblique orthographic projection, with pan and zoom. No real-time 3D scene, tactical altitude, orbital dynamics or freely rotating camera. Map dimensions and movement speeds are configurable. A moderate map must provide meaningful travel and redeployment times while remaining navigable on a phone.
+Gameplay occurs on a bounded two-dimensional plane in outer space. Render a real-time 3D battlefield using a fixed, near-overhead oblique orthographic camera, with pan and zoom. The authoritative simulation remains strictly planar: map simulation (x,y) to scene (x,0,y); visual height, pitch, roll and geometry never affect gameplay. No tactical altitude, orbital dynamics or freely rotating camera. Map dimensions and movement speeds are configurable. A moderate map must provide meaningful travel and redeployment times while remaining navigable on a phone.
 
 ### 2.2 Terrain
 
@@ -209,7 +209,7 @@ Four presets (working labels Cadet, Commander, Veteran, Admiral). Adjust initial
 
 ### 10.1 Artistic style
 
-Stylized cinematic science fiction inspired by the readability and colorful energy effects of StarCraft, with dark atmospheric space. Aim for engaging rather than photorealistic sprite artwork, with baked or procedural shading that suggests volume. Friendly ships are angular, industrial, metallic, with blue/cyan emissive accents. Hostile ships are curved or segmented, darker, with red/violet accents. Shapes, silhouettes and markings must differentiate faction and class independently of color. Carrier hangar bays, missile banks and prominent beam emitters distinguish weapon classes. Command frigates are immediately recognizable; miners and constructors have visibly industrial equipment.
+Stylized cinematic science fiction inspired by the readability and colorful energy effects of StarCraft, with dark atmospheric space. Aim for credible, detailed hard-surface spacecraft rather than cartoon-like silhouettes: actual 3D meshes, metallic materials, directional lighting, fine panel detail, restrained emissive accents and strong contrast against a predominantly black starfield. Use the player's reference screenshots as inspiration only, not copied assets. Friendly ships are angular, industrial, metallic, with blue/cyan emissive accents. Hostile ships are curved or segmented, darker, with red/violet accents. Shapes, silhouettes and markings must differentiate faction and class independently of color. Carrier hangar bays, missile banks and prominent beam emitters distinguish weapon classes. Command frigates are immediately recognizable; miners and constructors have visibly industrial equipment.
 
 Use layered starfields, subtle parallax, varied asteroid forms, soft nebulae, glowing energy deposits and restrained background planets. Terrain boundaries, build areas and silhouettes must remain readable. Decorative objects have no gameplay effect.
 
@@ -236,13 +236,13 @@ Use faction-based weapon colors, with weapon shape, motion and rhythm distinguis
 
 ### 10.3 Rendering quality
 
-**Rendering baseline: native Canvas 2D, sprite-based 2.5D.** The battlefield remains a continuous world-space plane; a fixed oblique orthographic projection creates an isometric-like appearance. Use an invertible world-to-screen transform with a configurable vertical compression (initial 0.65), pan and zoom. Use the same transform for terrain, entities, paths, placement, selection and overlays; inverse-project pointer positions to the gameplay plane. No tile-based movement or placement is implied by the visual projection.
+**Rendering baseline: real-time planar 3D, using Three.js and WebGL 2.** The battlefield remains a continuous two-dimensional simulation plane mapped onto the 3D XZ plane. Use a fixed orthographic camera initially 60 degrees above the plane (90 degrees is directly overhead), with configurable elevation, pan and zoom; no player-controlled camera rotation. Centralize world-to-screen projection and ray-to-plane inverse picking. All placement, range, path and collision geometry is defined in simulation coordinates.
 
-Create initial ship and structure artwork procedurally as shaded, layered 2D sprites (Canvas paths, gradients and cached offscreen canvases, or local SVG artwork). Use highlights, hull panels, occlusion shading, emissive details and consistent apparent lighting to suggest volume. Distinct faction and class silhouettes are mandatory; plain geometric placeholders alone do not satisfy the visual baseline. Render ships with heading-aware sprites: generated directional frames or a rotation approach that preserves the intended projected silhouette. Use a consistent ground-plane anchor and visual footprint; sort overlapping world objects by projected depth with stable tie-breaking. Draw health bars, selection markers and labels in a separate overlay pass. Cosmetic elevation, shadows, exhaust and parallax may suggest depth but never affect gameplay coordinates or collisions.
+Create recognizable hard-surface 3D spacecraft and structures using procedural mesh assemblies and physically based metallic/roughness materials, or original/licensed local models. Use layered hull plating, bevels, engine housings, missile banks, hangars and beam emitters, with a coherent directional key light, restrained fill lighting and selective emissive details. Avoid large cartoon outlines, overly saturated hull colors and chunky toy-like proportions. Keep ships small relative to the battlefield. Preserve the reviewed visual direction: near-black space, subtle starfield without conspicuous circular cloud gradients, and high-contrast luminous combat. Actual 3D geometry and lighting must remain present at all graphics qualities; sprites may be used for particles, distant decoration and HUD only, not as the primary ship representation. Use mesh yaw for heading and optional cosmetic banking. Keep stable entity IDs and model anchors, and use depth testing for opaque models and suitable transparent-effect ordering. HTML/CSS or projected overlays provide health bars, labels and selection indicators.
 
-Use an asset registry supporting replaceable transparent PNG/WebP images, SVG and sprite atlases; configurable frame count, heading mapping, anchor, scale and effect attachment points. Pre-rendered art from offline 3D tools is permitted, but no GLB/glTF loader or real-time 3D renderer is required. Provide procedural fallback artwork when optional assets are missing.
+Use an asset registry mapping class/faction to reusable local model descriptors, scales, orientation, anchors and weapon/engine attachment points. Support optional local GLB/glTF models with a pinned, locally vendored loader when needed; procedural 3D fallback models are required. No runtime external asset services. Geometry/material ownership and disposal must be explicit; share immutable geometries and materials, clone transforms or instance meshes where appropriate.
 
-Use layered background, terrain, depth-sorted entities, combat effects and HUD passes. Cache static artwork, cull offscreen objects, pool particles and bound effect counts. Use additive glow, layered translucent strokes, shield ripples, missile trails and explosion sprites to preserve spectacle without real-time 3D lighting. Quality settings automatically select a sensible level and permit manual override. Low/medium/high may vary render resolution, sprite detail, glow passes, particles, trails and decorative fighters. Simulation outcomes must be identical across quality settings. Provide reduced-flash/effects controls where practical. A future hardware-accelerated 2D renderer may replace Canvas 2D behind the rendering interface only if profiling justifies it; it is not required for initial implementation.
+Use depth-tested 3D terrain and ships, layered starfields, emissive weapon effects, additive particles, missile trails, shield shells and explosions. Selective bloom or equivalent glow may be used, but retain a clean dark background and readable silhouettes. Limit expensive lighting, transparent overdraw, postprocessing resolution, particle counts and draw calls; use culling, pooling and instancing as appropriate. Low/medium/high may change pixel ratio, mesh detail, lighting/effects quality and decorative fighters but never simulation outcomes. Provide reduced-flash/effects controls where practical. Avoid unbounded per-frame allocations and dispose resources on reset or renderer teardown.
 
 ### 10.4 Audio
 
@@ -252,7 +252,7 @@ Include atmospheric music, combat music variation where feasible, distinctive we
 
 ### 11.1 Layout
 
-The battlefield occupies most of the screen. Persistent top HUD shows energy stored/capacity, net energy flow, slowdown status, current wave or next countdown, approximate threat composition, device charge/status, pause and speed. Use compact persistent fleet shortcuts and an expandable roster, contextual panels for selected assets, shipyard, construction, civilian operations and economy, plus interactive minimap. Native HTML/CSS overlays the 2.5D Canvas 2D battlefield. Adapt layout to desktop and landscape-first mobile; do not merely shrink desktop UI. Keep touch targets comfortable, respect safe areas, avoid hover-only functionality, and ensure panels can collapse without losing critical alerts.
+The battlefield occupies most of the screen. Persistent top HUD shows energy stored/capacity, net energy flow, slowdown status, current wave or next countdown, approximate threat composition, device charge/status, pause and speed. Use compact persistent fleet shortcuts and an expandable roster, contextual panels for selected assets, shipyard, construction, civilian operations and economy, plus interactive minimap. Native HTML/CSS overlays the WebGL 3D battlefield. Adapt layout to desktop and landscape-first mobile; do not merely shrink desktop UI. Keep touch targets comfortable, respect safe areas, avoid hover-only functionality, and ensure panels can collapse without losing critical alerts.
 
 ### 11.2 Fleet display
 
@@ -306,11 +306,11 @@ Use localStorage for settings, preferred match configuration, tutorial completio
 
 ### 13.1 Hard constraints
 
-- Standalone HTML/CSS/modern JavaScript, native ES modules, Canvas 2D sprite-based renderer.
+- Standalone HTML/CSS/modern JavaScript, native ES modules, real-time Three.js/WebGL 2 renderer with planar gameplay.
 - **No build step.** A conventional static HTTP server serves the checked-in source and assets directly. No mandatory npm install, bundler, transpiler, framework, generated dist directory, server-side code or external gameplay services.
-- Use native browser APIs without a mandatory rendering library. If an optional dependency is justified, vendor its pinned browser-ready files locally with license notices and use native module imports. All runtime assets must be available from the same static deployment; no required CDN.
+- Vendor a pinned browser-ready Three.js release locally with its license, using native module imports. Vendor optional loaders and postprocessing modules from the same release only when needed, with license notices. No mandatory package installation. All runtime assets must be available from the same static deployment; no required CDN.
 - Native browser test harness; no external testing tooling required. Development may use a simple static server. Opening via file:// is not a required use case.
-- Modern desktop Chrome/Firefox/Edge and mobile Android Chrome/iOS Safari are targets; show useful compatibility/error message when Canvas 2D or required modules are unavailable.
+- Modern desktop Chrome/Firefox/Edge and mobile Android Chrome/iOS Safari are targets; show useful compatibility/error message when WebGL 2 or required modules are unavailable.
 
 ### 13.2 Suggested repository layout
 
@@ -326,13 +326,13 @@ src/
   systems/         # combat, economy, construction, fleets, objectives
   ai/              # waves, group objectives, autonomous behavior
   world/           # map generation, validation, navigation
-  rendering/       # 2.5D projection, sprite registry, canvas passes, effects
+  rendering/       # 3D camera, model registry, scene, lighting, effects
   ui/              # DOM panels, controls, input, notifications
   audio/           # audio events and mixing
   debug/           # diagnostics and sandbox
 vendor/           # pinned browser-ready dependencies and licenses
-assets/           # sprites, textures, audio, icons
-  sprites/
+assets/           # models, textures, audio, icons
+  models/
   textures/
   audio/
   icons/
@@ -349,7 +349,7 @@ File organization is a recommendation; responsibility separation is mandatory. R
 
 ### 13.3 Simulation / rendering separation
 
-Authoritative state consists of plain data records with stable unique IDs. Use a simple data-driven entity system, not a mandatory ECS framework. Simulation modules must not import rendering modules, manipulate DOM or depend on rendering frame rate. Input adapters produce validated commands; only simulation systems change gameplay state. Rendering, audio and UI consume state and events. Asset registry maps entity class/faction to sprite frames, anchors, visual scale, headings and effects; replace artwork without changing collision, damage or range. External sprite assets must have configurable anchors, scale and orientation, with procedural fallbacks. Centralize projection and inverse projection; gameplay distances and collision checks remain in unprojected world coordinates.
+Authoritative state consists of plain data records with stable unique IDs. Use a simple data-driven entity system, not a mandatory ECS framework. Simulation modules must not import rendering modules, manipulate DOM or depend on rendering frame rate. Input adapters produce validated commands; only simulation systems change gameplay state. Rendering, audio and UI consume state and events. Asset registry maps entity class/faction to 3D models, anchors, visual scale, headings and effect attachment points; replace artwork without changing collision, damage or range. External local model assets must have configurable anchors, scale and orientation, with procedural mesh fallbacks. Centralize projection and inverse projection; gameplay distances and collision checks remain in unprojected world coordinates.
 
 Use fixed-timestep simulation (initial 20 Hz) with position interpolation for rendering. All timers, energy, cooldowns, regeneration, movement and charging use simulation time. At 2× run twice as many simulation steps per real second; at 0.5× half as many. Use bounded catch-up to avoid a runaway frame backlog. Never advance hidden-tab wall-clock time on resume. Pausing must clear or freeze accumulated simulation time. A headless-in-browser simulation can be stepped directly for tests.
 
@@ -359,7 +359,7 @@ Define a consistent update order and stable tie-breaks; suggested order: validat
 
 Use grid-based A* with diagonal corner-cut prevention, weighted traversal time through sparse asteroids, collision-aware smoothing, dynamic obstacle updates and local steering. Maintain faction-specific barrier traversal rules; plan hostile breaches as explicit attackable obstacles. Share group routes where practical, replan on topology change or meaningful destination change, not every tick. Smooth paths must not cross blocked terrain. Handle unreachable destinations with nearest reachable point and clear feedback. Ensure narrow corridors accommodate fleet compression; implement a stuck detector/replan fallback. Reinforcements use same terrain constraints, even when invulnerable.
 
-Use spatial hashing or similar nearby-query acceleration for targeting, separation and sensors; avoid all-pairs checks every frame. Stagger costly AI work, reuse particles and cached sprites, limit allocations, release per-match canvas caches and rendering references on reset. Render only visible enemy contacts. Use interpolation, culling and quality controls. Targets: 60 FPS desktop, 30 FPS mobile, 200 concurrent gameplay ships/structures in stress tests, excluding decorative objects. These are engineering objectives, not validated device performance claims. Report hardware/browser and actual frame/update timings in tests.
+Use spatial hashing or similar nearby-query acceleration for targeting, separation and sensors; avoid all-pairs checks every frame. Stagger costly AI work, reuse particles, geometries and materials, limit allocations, release per-match scene objects and owned GPU resources on reset. Render only visible enemy contacts. Use interpolation, culling and quality controls. Targets: 60 FPS desktop, 30 FPS mobile, 200 concurrent gameplay ships/structures in stress tests, excluding decorative objects. These are engineering objectives, not validated device performance claims. Report hardware/browser and actual frame/update timings in tests.
 
 ### 13.5 Centralized configuration
 
@@ -371,6 +371,8 @@ Provide a developer-only panel accessible through a documented URL flag or menu.
 
 ## 14. Initial implementation scope and acceptance
 
+**Version 1.2 transition:** reopen Milestone 1 for the planar 3D foundation, then revalidate Milestone 2 in 3D using the existing tested combat logic. Continue with Milestones 3–8 only after the applicable review gates. Preserve the accepted gameplay design, interface direction and prior history; do not treat the renderer migration as a mandate to rewrite the simulation.
+
 ### 14.0 Staged delivery and review gates
 
 Implement one milestone at a time, in the sequence below. At the end of each milestone, stop implementation and provide a runnable increment for human review. Do not begin the next milestone until the user approves or requests continuation. The user may request corrections to the current increment before approving it. Each increment must remain directly servable from source, preserve previous accepted functionality, and include relevant native browser tests and documentation. Do not implement future milestones speculatively; minimal interfaces needed for the current milestone are appropriate. The combat sandbox is an early development tool, not the finished game.
@@ -379,13 +381,13 @@ At each gate, provide: implemented features; launch/test instructions; automated
 
 #### Milestone 1 — Application foundation
 
-Deliver a directly servable application with modular JavaScript, Canvas 2D renderer, fixed oblique projection, pan/zoom, fixed-step clock, entity lifecycle, centralized configuration, basic diagnostics and native browser test runner. Display representative shaded sprites on a layered starfield. Validate pointer-to-world round trips across zoom and pan, stable depth ordering, resize and device-pixel-ratio handling, pause/speed and simulation independence from render rate. No match objective required.
+Deliver a directly servable application with modular JavaScript, pinned local Three.js/WebGL 2, fixed near-overhead orthographic camera, pan/zoom, fixed-step clock, entity lifecycle, centralized configuration, basic diagnostics and native browser test runner. Display representative actual 3D hard-surface ships and structures with metallic shading, directional lighting and a predominantly black starfield. Validate pointer-to-plane round trips across zoom and pan, correct opaque depth testing, resize and device-pixel-ratio handling, pause/speed, resource cleanup and simulation independence from render rate. No match objective required. This rendering foundation is reopened by version 1.2; retain previously tested renderer-independent code where compatible, but revalidate the foundation before porting combat visuals and proceeding to later gates.
 
 **Review gate:** launch the scene, inspect visual direction and camera feel, confirm the no-build workflow and passing foundation tests.
 
 #### Milestone 2 — Combat sandbox
 
-Deliver three combat classes for each faction plus friendly command frigate, recognizable directional sprite artwork, spawn/position/reset controls and controlled duels and fleet battles. Implement nearest eligible targeting, counter matrix, shield/hull damage, destruction and combat events. Show cosmetic fighter swarms, missile salvos, beams, shield impacts, engine trails and explosions from this milestone onward. Test neutral/same-class damage, each intended counter, equal-cost engagements, range differences, no friendly fire and identical results across graphical quality. Use a documented sandbox energy fixture for regeneration until the full economy is integrated.
+Deliver three combat classes for each faction plus friendly command frigate, recognizable heading-aware 3D models, spawn/position/reset controls and controlled duels and fleet battles. Implement nearest eligible targeting, counter matrix, shield/hull damage, destruction and combat events. Show cosmetic fighter swarms, missile salvos, beams, shield impacts, engine trails and explosions from this milestone onward. Test neutral/same-class damage, each intended counter, equal-cost engagements, range differences, no friendly fire and identical results across graphical quality. Use a documented sandbox energy fixture for regeneration until the full economy is integrated.
 
 **Review gate:** watch battles and assess silhouettes, visual spectacle, combat readability and initial counter balance before expanding the game.
 
@@ -451,8 +453,8 @@ Use native browser modules and a dedicated test page with pass/fail reporting, r
 | Relocation | Exactly one active portal; warning and location change; no relocation after full charge |
 | Device | Time-based readiness, unique pickup, continuous in-range deployment, drop and recovery, victory once |
 | Defeat | Command station loss freezes match and wins precedence on simultaneous terminal events |
-| Projection | World/screen round trips across pan, zoom and resize; picking, placement and range overlays align; sprite depth ties stable |
-| Visual assets | Missing optional sprites use fallback; replacement artwork and quality settings do not change simulation |
+| Projection | World/screen round trips across pan, zoom and resize; picking, placement and range overlays align; opaque depth testing and stable overlay ordering |
+| Visual assets | Missing optional models use procedural 3D fallback; replacement artwork and quality settings do not change simulation |
 | Clock | Pause rejects orders; speed scales gameplay time; hidden tab pauses; identical outcomes at different render rates |
 | Persistence | Settings/history recover from missing/corrupt storage; no active match save |
 | Reset | Consecutive matches do not leak prior entities, events, listeners or graphics resources |
@@ -463,7 +465,7 @@ Verify a complete normal match from menu to results without developer commands. 
 
 ### 14.3 Scope boundaries
 
-No real-time 3D rendering or runtime 3D model loading, carrier tower, research, upgrades, armor stat, enemy economy, separate power resource, weapon/movement upkeep, mining stations or hauling, direct subordinate commands, independent fighter combat simulation, physical projectiles, tactical altitude, multiplayer, campaign, active match saving, backend or mandatory build tools. Do not scaffold deferred features speculatively. Do not add new unit classes to compensate for balance problems; first tune the accepted classes.
+No free-flight 3D gameplay, tactical camera rotation, carrier tower, research, upgrades, armor stat, enemy economy, separate power resource, weapon/movement upkeep, mining stations or hauling, direct subordinate commands, independent fighter combat simulation, physical projectiles, tactical altitude, multiplayer, campaign, active match saving, backend or mandatory build tools. Do not scaffold deferred features speculatively. Do not add new unit classes to compensate for balance problems; first tune the accepted classes.
 
 ## 15. Initial tuning and implementation assumptions
 
@@ -471,7 +473,7 @@ These values are starting points selected to make the initial game implementable
 
 ### 15.1 Baseline combat and asset configuration
 
-World distance units are arbitrary; time is simulation seconds. DPS below is descriptive (damage / interval). All ship normal speeds initially 60 units/s. Friendly and hostile main combat classes use the same base values. Enemy hull recovery is disabled regardless of table rates.
+World distance units are arbitrary; time is simulation seconds. DPS below is descriptive (damage / interval). All ship normal speeds initially 90 units/s (provisional tuning accepted for the visual review; originally 60). Friendly and hostile main combat classes use the same base values. Enemy hull recovery is disabled regardless of table rates.
 
 | Ship | Shield HP | Hull HP | Damage / interval (s) | DPS | Range | Sensor | Cost E | Build s |
 |---|---:|---:|---|---:|---:|---:|---:|---:|
@@ -500,7 +502,7 @@ Suggested common regeneration defaults: shield 8% maximum HP/sec, hull 1% maximu
 |---|---|
 | Map dimensions | 1,800 × 1,800 world units |
 | Navigation cell | 20 units; adjust for collision geometry |
-| Normal ship movement | 60 units/s |
+| Normal ship movement | 90 units/s (provisional visual-feedback tuning) |
 | Sparse asteroid speed | 0.65× |
 | Nebula sensor and targeting | 0.65× when source is within nebula |
 | Formation / engagement radius | 90 / 250 units |
@@ -551,7 +553,7 @@ The following clarify otherwise unspecified implementation details. They are rec
 | A11 | Initial resource distribution uses a measurable protected starting region defined by generator archetype, not actual player-built walls. Target 50% mining yield outside it (suggest 45–55% validation tolerance). |
 | A12 | Most completed structures extend influence, including posts; disconnected structures remain operational. Use center point plus footprint collision checks for placement. No construction through portal exclusion zones. |
 | A13 | Match results retain latest 20 completed games locally, no debug-assisted results; automatic pause on hidden tab requires manual resume. |
-| A14 | Fixed oblique orthographic sprite projection (initial vertical compression 0.65), recommended input bindings, approximate wave descriptors, archetype names and difficulty names are provisional interface defaults. |
+| A14 | Fixed near-overhead orthographic 3D camera (initial elevation 60 degrees above the plane), recommended input bindings, approximate wave descriptors, archetype names and difficulty names are provisional interface defaults. |
 | A15 | No explicit upper construction or civilian population cap has been specified. Bound performance through tuning and optimization; document any hard cap before treating it as a design requirement. |
 
 ### 15.4 Definition of done
