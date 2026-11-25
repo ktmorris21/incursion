@@ -11,10 +11,10 @@ export const LABELS = Object.freeze({station:'Command station', frigate:'Command
 export const COMBAT=Object.freeze({
  speed:270, delay:4, shieldRate:.08,hullRate:.01,shieldCost:.5,hullCost:2,sandboxEnergy:3000,
  classes:Object.freeze({
- carrier:Object.freeze({shield:80,hull:120,damage:15,interval:.5,range:320,sensor:520,cost:1500}),
- missile:Object.freeze({shield:120,hull:180,damage:30,interval:2,range:440,sensor:600,cost:1500}),
- destroyer:Object.freeze({shield:160,hull:240,damage:22,interval:1,range:220,sensor:460,cost:1500}),
- frigate:Object.freeze({shield:200,hull:300,damage:8,interval:1,range:260,sensor:600,cost:6000}),
+ carrier:Object.freeze({shield:80,hull:120,damage:15,interval:.5,range:480,sensor:780,cost:1500}),
+ missile:Object.freeze({shield:120,hull:180,damage:30,interval:2,range:660,sensor:900,cost:1500}),
+ destroyer:Object.freeze({shield:160,hull:240,damage:22,interval:1,range:330,sensor:690,cost:1500}),
+ frigate:Object.freeze({shield:200,hull:300,damage:8,interval:1,range:390,sensor:900,cost:6000}),
  station:Object.freeze({shield:600,hull:1200,damage:0,interval:1,range:0,sensor:400}),
  miner:Object.freeze({shield:40,hull:100,damage:0,interval:1,range:0,sensor:160}),
  constructor:Object.freeze({shield:40,hull:100,damage:0,interval:1,range:0,sensor:160})
