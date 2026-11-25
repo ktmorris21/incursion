@@ -37,13 +37,13 @@ export class PresentationMotion {
 }
 
 // Persistent command insignia, independent of labels and weapon-range overlays.
-// Shared geometry/materials are disposed once; each frigate gets its own group.
+// Shared geometry/materials are disposed once; each command ship gets its own group.
 export class CommandMarkers {
  constructor(scene){
   this.root=new T.Group();scene.add(this.root);this.items=new Map();
-  this.arc=new T.RingGeometry(40,42,20,1,.12,Math.PI/2-.24);
-  this.inner=new T.RingGeometry(35.8,36.7,64);
-  this.tick=new T.PlaneGeometry(8,3);
+  this.arc=new T.RingGeometry(76,79,20,1,.12,Math.PI/2-.24);
+  this.inner=new T.RingGeometry(70,71.5,64);
+  this.tick=new T.PlaneGeometry(12,4);
   const make=(color,opacity)=>new T.MeshBasicMaterial({color,opacity,transparent:true,depthWrite:false,side:T.DoubleSide,toneMapped:false});
   this.normal=make(0x80e9ff,.78);this.selected=make(0xd1fbff,1);this.detail=make(0x55b6d4,.42);
  }
@@ -57,7 +57,7 @@ export class CommandMarkers {
     const inner=new T.Mesh(this.inner,this.detail);inner.rotation.x=-Math.PI/2;g.add(inner);
     for(let j=0;j<4;j++){
      const a=j*Math.PI/2,arc=new T.Mesh(this.arc,this.normal);arc.rotation.set(-Math.PI/2,0,a,'XYZ');g.add(arc);
-     const tick=new T.Mesh(this.tick,this.normal);tick.rotation.set(-Math.PI/2,0,a,'XYZ');tick.position.set(45*Math.cos(a),0,-45*Math.sin(a));g.add(tick);
+     const tick=new T.Mesh(this.tick,this.normal);tick.rotation.set(-Math.PI/2,0,a,'XYZ');tick.position.set(83*Math.cos(a),0,-83*Math.sin(a));g.add(tick);
     }
     this.root.add(g);this.items.set(id,g);
    }
@@ -100,7 +100,7 @@ export class BattlefieldRenderer {
   if(!el){el=document.createElement('div');el.dataset.id=i.id;el.className='ship-overlay';const bars=document.createElement('div');bars.className='ship-bars';for(const cls of ['shield','hull']){const track=document.createElement('div');track.className='ship-bar '+cls;track.append(document.createElement('i'));bars.append(track);}const label=document.createElement('div');label.className='ship-label';el.append(bars,label);this.overlay.append(el);}
   const [bars,label]=el.children;bars.hidden=!showHealth;label.hidden=!showLabel;label.textContent=i.e.label;label.style.color=i.e.faction==='friendly'?'#8bd8ec':'#f49ab0';
   bars.children[0].firstElementChild.style.width=100*Math.max(0,i.e.shield/i.e.maxShield)+'%';bars.children[1].firstElementChild.style.width=100*Math.max(0,i.e.hull/i.e.maxHull)+'%';
-  el.style.left=i.screen.x+'px';el.style.top=(i.screen.y+25*this.camera.zoom)+'px';el.classList.toggle('selected',chosen);el.classList.toggle('enemy',i.e.faction==='hostile');
+  el.style.left=i.screen.x+'px';el.style.top=(i.screen.y+(i.e.kind==='frigate'?57:25)*this.camera.zoom)+'px';el.classList.toggle('selected',chosen);el.classList.toggle('enemy',i.e.faction==='hostile');
  }
  for(const el of [...this.overlay.children])if(!visible.has(el.dataset.id))el.remove();
  }
