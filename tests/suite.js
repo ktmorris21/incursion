@@ -1,4 +1,4 @@
-import {ARCHETYPES,generateMap,fallbackMap,findPath,segmentClear,walkable,clearance,speedFactor,sensorFactor,detected,inside,dimensions,regionsConflict,portalApproach,portalFormation} from '../src/core/terrain.js';
+import {ARCHETYPES,generateMap,fallbackMap,findPath,segmentClear,walkable,clearance,speedFactor,sensorFactor,detected,inside,dimensions,regionsConflict,portalApproach,portalFormation,MIN_PASSAGE,MAX_PASSAGE} from '../src/core/terrain.js';
 import {TerrainView} from '../src/rendering/terrain.js';
 import * as T from '../vendor/three.module.js';
 import {CONFIG,COMBAT} from '../src/config.js';
@@ -232,7 +232,7 @@ coreTests.push(
  ['Geography: 1,000 seeded maps, all archetypes, resource balance and validated fallback',()=>{
   for(const archetype of ARCHETYPES){
    for(let i=0;i<250;i++){
-    const m=generateMap('survey-'+i,archetype);assert(m.validation.ok);assert(m.validation.outside>=.45&&m.validation.outside<=.55);eq(m.deposits.length,4);eq(m.portals.length,3);eq(m.base,{x:2850,y:2850});eq(new Set(m.portals.map(p=>p.edge)).size,3);assert(m.portals.every(p=>Math.min(p.x,p.y,5700-p.x,5700-p.y)<=325));const regions=[...m.dense,...m.sparse,...m.nebula];for(let a=0;a<regions.length;a++)for(let b=0;b<a;b++)assert(!regionsConflict(regions[a],regions[b]));assert(m.activePortal>=0&&m.activePortal<3);
+    const m=generateMap('survey-'+i,archetype);assert(m.validation.ok);assert(m.validation.outside>=.45&&m.validation.outside<=.55);eq(m.deposits.length,4);eq(m.portals.length,3);eq(m.base,{x:4500,y:4500});eq(new Set(m.portals.map(p=>p.edge)).size,3);assert(m.portals.every(p=>Math.min(p.x,p.y,9000-p.x,9000-p.y)<=325));const regions=[...m.dense,...m.sparse,...m.nebula];for(let a=0;a<regions.length;a++)for(let b=0;b<a;b++)assert(!regionsConflict(regions[a],regions[b]));assert(m.activePortal>=0&&m.activePortal<3);assert(m.rooms.length>=14);for(const e of m.links){assert(e.width>=MIN_PASSAGE&&e.width<=MAX_PASSAGE);for(let k=1;k<e.points.length;k++)assert(segmentClear(m,e.points[k-1],e.points[k],175));}
     if(archetype==='Crossroads')assert(m.validation.corridors>=4);if(archetype==='Bastion')assert(m.validation.corridors<=3);
     if(i===0)eq(m,generateMap('survey-'+i,archetype));
    }assert(fallbackMap('fallback-test',archetype).validation.ok);
@@ -248,7 +248,7 @@ coreTests.push(
   for(const archetype of ARCHETYPES){
    const s=makeTerrainBattle('incursion-01',archetype,false),e=s.entities.find(e=>e.kind==='frigate'),goal=portalApproach(s.map,s.map.portals[1]);
    assert(applyCommand(s,{type:'position',id:e.id,...goal}).ok);
-   for(let i=0;i<1400;i++){step(s);drainEvents(s);for(const a of s.entities)assert(walkable(s.map,a,clearance(a)),archetype+' hull '+a.id);}
+   for(let i=0;i<2400;i++){step(s);drainEvents(s);for(const a of s.entities)assert(walkable(s.map,a,clearance(a)),archetype+' hull '+a.id);}
    near(e.x,goal.x,.1);near(e.y,goal.y,.1);
    const blocked=s.map.dense[0];assert(!applyCommand(s,{type:'position',id:e.id,x:blocked.x,y:blocked.y}).ok);
    assert(!applyCommand(s,{type:'spawn',data:{kind:'carrier',faction:'friendly',x:blocked.x,y:blocked.y}}).ok);
@@ -275,10 +275,10 @@ coreTests.push(
  }]
 );
 coreTests.push(
- ['Expanded sector: ~10x area, world bounds, camera fit and sandbox compatibility',()=>{
+ ['Expanded sector: 25x original area, world bounds, camera fit and sandbox compatibility',()=>{
   const s=makeTerrainBattle('scale-test','Crossroads',false),d=dimensions(s.map);
-  eq(d,{width:5700,height:5700});assert(d.width*d.height/(1800*1800)>9.9);assert(s.entities.some(e=>e.x>1800));
-  const c=new Camera(1280,720);c.setWorld(d.width,d.height);c.fit();const a=c.worldToScreen(0,0),b=c.worldToScreen(d.width,d.height);assert(a.x>=0&&a.y>=0&&b.x<=c.width&&b.y<=c.height);c.focus(10000,10000);eq([c.x,c.y],[5700,5700]);
+  eq(d,{width:9000,height:9000});assert(d.width*d.height/(1800*1800)===25);assert(s.entities.some(e=>e.x>1800));
+  const c=new Camera(1280,720);c.setWorld(d.width,d.height);c.fit();const a=c.worldToScreen(0,0),b=c.worldToScreen(d.width,d.height);assert(a.x>=0&&a.y>=0&&b.x<=c.width&&b.y<=c.height);c.focus(10000,10000);eq([c.x,c.y],[9000,9000]);
   const e=s.entities.find(e=>e.kind==='frigate'),p=s.map.portals[1];assert(applyCommand(s,{type:'position',id:e.id,...portalApproach(s.map,p)}).ok);assert(Math.max(e.destination.x,e.destination.y)>1800);c.setWorld();c.focus(5000,5000);eq([c.x,c.y],[1800,1800]);
  }],
  ['Terrain ribbons: polygon membership, clearance and straight-line crossing',()=>{
@@ -292,7 +292,7 @@ coreTests.push(
  ['Central chamber: station centered, edge portal formations and every portal route reachable',()=>{
   for(const archetype of ARCHETYPES){
    const s=makeTerrainBattle('chamber-test',archetype,false),m=s.map,station=s.entities.find(e=>e.kind==='station');
-   eq([station.x,station.y],[2850,2850]);assert(m.validation.corridors===m.expectedGates);
+   eq([station.x,station.y],[4500,4500]);assert(m.validation.corridors===m.expectedGates);
    const active=m.portals[m.activePortal],formation=portalFormation(m,active),enemies=s.entities.filter(e=>e.faction==='hostile');
    enemies.forEach((e,i)=>{near(e.x,formation[i].x);near(e.y,formation[i].y);near(e.heading,Math.atan2(m.base.y-active.y,m.base.x-active.x));});
    for(const p of m.portals){const dest=portalApproach(m,p),route=findPath(m,m.base,dest,70);assert(route&&route.length);let q=m.base;for(const r of route){assert(segmentClear(m,q,r,70));q=r;}}
@@ -301,6 +301,20 @@ coreTests.push(
  ['Terrain exclusivity: rejects crossing, contained and too-close polygons',()=>{
   const rect=(x,y,w,h)=>({points:[{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}]});
   const a=rect(0,0,200,200);assert(regionsConflict(a,rect(100,100,200,200)));assert(regionsConflict(a,rect(50,50,25,25)));assert(regionsConflict(a,rect(220,0,60,60)));assert(!regionsConflict(a,rect(250,0,60,60)));
+ }]
+);
+coreTests.push(
+ ['Chamber graph: seed changes topology, room placement and corridor widths',()=>{
+  for(const archetype of ARCHETYPES){
+   const signatures=new Set(),roomCounts=new Set(),widths=[];
+   for(let i=0;i<12;i++){const m=generateMap('topology-'+i,archetype);
+    signatures.add(m.links.map(e=>[Math.min(e.a,e.b),Math.max(e.a,e.b)].join(':')).sort().join('|'));
+    roomCounts.add(m.rooms.length);assert(m.rooms.length>=14);
+    for(const e of m.links)widths.push(e.width);
+    const reached=new Set([12]);for(let k=0;k<m.rooms.length;k++)for(const e of m.links)if(reached.has(e.a)||reached.has(e.b)){reached.add(e.a);reached.add(e.b);}eq(reached.size,m.rooms.length);
+   }
+   assert(signatures.size>=10);assert(roomCounts.size>=2);assert(Math.min(...widths)>=420&&Math.max(...widths)>850);
+  }
  }]
 );
 export const browserTests=[
