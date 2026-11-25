@@ -7,6 +7,7 @@ import {Camera,canvasSize,resizeCanvas,depthSort,headingFrame} from '../src/rend
 import {SpriteRegistry} from '../src/rendering/sprites.js';
 import {BattlefieldRenderer} from '../src/rendering/renderer.js';
 import {ModelRegistry} from '../src/rendering/models.js';
+import {CombatEffects} from '../src/rendering/effects.js';
 export function assert(ok,message='Assertion failed'){if(!ok)throw Error(message);}
 const near=(a,b,epsilon=1e-7)=>assert(Math.abs(a-b)<epsilon,`${a} differs from ${b}`);
 const eq=(a,b)=>assert(JSON.stringify(a)===JSON.stringify(b),`Expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
@@ -98,7 +99,33 @@ coreTests.push(['Combat: naval range tuning and stand-off distances',()=>{
  let first=null;for(let i=0;i<100&&!first;i++){step(s);first=drainEvents(s).find(e=>e.type==='hit');}
  assert(first&&first.kind==='missile');const d=Math.hypot(first.x-first.sx,first.y-first.sy);assert(d>c.destroyer.range&&d<=c.missile.range);
 }]);
+coreTests.push(
+ ['3D effects: weapon families, shield impacts, destruction, trails and bounded lifetime',()=>{
+  const scene=new T.Scene(),fx=new CombatEffects(scene);
+  const events=['carrier','missile','destroyer','frigate'].map((kind,i)=>({type:'hit',id:i+2,source:1,kind,faction:i%2?'hostile':'friendly',x:400+i*10,y:300,sx:0,sy:300,shield:10,hull:0}));
+  events.push({type:'destroyed',kind:'carrier',faction:'hostile',id:10,x:300,y:300});
+  const item={id:1,e:{kind:'carrier',faction:'friendly',x:20,y:10,prevX:0,prevY:10},pose:{x:20,y:10,heading:0}};
+  const snapshot=JSON.stringify([events,item]);
+  try{
+   fx.addEvents(events,0);eq(fx.events.length,5);
+   for(const t of [0,.15,.4,.7,1]){fx.update(t,[item]);fx.root.traverse(o=>assert([...o.position.toArray(),...o.scale.toArray(),...o.quaternion.toArray()].every(Number.isFinite)));eq(fx.trails.size,1);}
+   fx.update(2,[]);eq(fx.events.length,0);eq(fx.trails.size,0);
+   fx.addEvents(Array.from({length:180},()=>events[0]),3);eq(fx.events.length,160);fx.reset();eq(fx.root.children.length,0);eq(JSON.stringify([events,item]),snapshot);
+  }finally{fx.dispose();}eq(fx.materials.size,0);eq(scene.children.length,0);
+ }],
+ ['Combat: mixed fleet actual 3D effects do not alter outcomes at any quality',()=>{
+  const results=[];const kinds=new Set();
+  for(const quality of ['low','medium','high']){
+   const s=makeBattle(),fx=new CombatEffects(new T.Scene());applyCommand(s,{type:'engage'});
+   try{for(let i=0;i<600;i++){
+    step(s);const ev=drainEvents(s);for(const e of ev)if(e.type==='hit')kinds.add(e.kind);
+    fx.addEvents(ev,s.time);fx.update(s.time,s.entities.map(e=>({id:e.id,e,pose:poseAt(e,1)})),quality);
+   }results.push(s);}finally{fx.dispose();}
+  }eq(results[0],results[1]);eq(results[0],results[2]);assert(results[0].outcome!==null);for(const k of ['carrier','missile','destroyer','frigate'])assert(kinds.has(k),'Missing '+k);
+ }]
+);
 export const browserTests=[
+ ['WebGL: live combat draws effects and health overlays at all qualities',()=>{const canvas=document.createElement('canvas'),c=new Camera(800,500),r=new BattlefieldRenderer(canvas,c),s=makeBattle();applyCommand(s,{type:'engage'});try{for(const q of ['low','medium','high']){r.resize(800,500,1,q);for(let i=0;i<40;i++){step(s);r.addEvents(drainEvents(s),s.time);r.draw(s,1);}assert(r.gl.info.render.triangles>0);assert(r.gl.getContext().getError()===0);}assert(r.overlay.children.length>0);assert(r.effects.materials.size>0);r.reset();eq(r.effects.events.length,0);eq(r.effects.root.children.length,0);}finally{r.dispose();}}],
  ['WebGL: models render, pick and resize without mutating simulation',()=>{const canvas=document.createElement('canvas'),c=new Camera(800,500),r=new BattlefieldRenderer(canvas,c),s=makeDemo(),before=JSON.stringify(s);r.resize(800,500,2,'high');r.draw(s,1);eq([canvas.width,canvas.height],[1600,1000]);assert(r.gl.info.render.triangles>0);assert(r.gl.getContext().getError()===0);const e=s.entities[0];c.focus(e.x,e.y);r.draw(s,1);assert(r.pick(400,250)!==null);r.resize(390,844,3,'medium');r.draw(s,1);eq([canvas.width,canvas.height],[585,1266]);eq(JSON.stringify(s),before);r.dispose();eq(r.registry.cache.size,0);}],
  ['WebGL: mesh assets and resource ownership',()=>{const r=new ModelRegistry();for(const [kind,faction] of [['station','friendly'],['frigate','friendly'],['carrier','friendly'],['missile','friendly'],['destroyer','friendly'],['miner','friendly'],['constructor','friendly'],['carrier','hostile'],['missile','hostile'],['destroyer','hostile']]){const a=r.get(kind,faction),b=r.get(kind,faction);assert(a!==b);let count=0;a.traverse(o=>{if(o.isMesh){count++;assert(o.geometry.attributes.position.count>0);assert(o.material.isMeshStandardMaterial);}});assert(count>5);}assert(r.geometry.size>0);r.clear();eq(r.geometry.size,0);eq(r.materials.size,0);}],
  ['WebGL: projection matches real 3D camera across zoom and pan',()=>{const canvas=document.createElement('canvas'),c=new Camera(640,400),r=new BattlefieldRenderer(canvas,c),s=makeDemo();r.resize(640,400,1,'low');for(const q of ['low','medium','high']){r.resize(640,400,1,q);c.zoomAt(1.2);c.panPixels(10,20);r.draw(s,.5);for(const i of r.visibleItems){const o=r.objects.get(i.id),v=o.position.clone().project(r.view);near((v.x+1)*320,i.screen.x,1e-5);near((1-v.y)*200,i.screen.y,1e-5);}}r.dispose();}]
