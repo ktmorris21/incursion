@@ -39,3 +39,38 @@ The environment blocked ordinary local HTTP browser navigation with `ERR_BLOCKED
 ### Deferred
 
 Milestone 2 combat sandbox (targeting, counter matrix, shields/hull, destruction effects, regeneration, controlled battles and weapon spectacle); Milestones 3–8 battlefield generation, fleet control, economy, enemy waves, full match, audio and polish. Do not proceed past this gate until the user approves or requests continuation.
+
+
+## Milestone 2 — Combat sandbox (ready for human review)
+
+Milestone 1 approved; visual feedback incorporated. The new increment retains Canvas 2D and the 20 Hz fixed-step simulation, adds shield/hull damage, deterministic nearest eligible targeting, class counters, automatic open-space approach, combat destruction, repair, mixed-fleet and three duel presets, configurable starting range, empty sandbox, class/faction placement, positioning, health bars, inspection and combat-event effects. The renderer shows fighter runs and blaster bolts, curved missile salvos, solid beams, frigate bolts, engine trails, shield ripples, hull impacts and explosions. Effects are bounded and cosmetic. All artwork is original; supplied screenshots were visual inspiration only.
+
+### Changes and assumptions
+
+- User-directed provisional visual tuning: ship display scale .52 (station .72), camera vertical compression .65 → .84, 24 → 36 directional frames, near-black background, muted neutral metallic palettes and reduced hull glow. Weapon effects retain intense bright contrast.
+- Common normal movement speed 60 → 90 world units/s per user feedback; same speed for all combat classes and factions. No changes to spec damage, interval, HP, range, costs, or 2× / .75× counter multipliers.
+- Default sandbox overview is capped at 1.0 zoom with room for side panels. Manual zoom/focus remains available. Moved diagnostics to the right and added compact landscape battle status.
+- Sandbox-only positioning and strategic approach use global awareness in open space; actual shots require local sensor and weapon range eligibility. Simultaneous movement proposals and stable sequential ID attack order. Dead ships do not retaliate later in the tick. No fleet command leashes, terrain, fog system or pathfinding yet.
+- Shared finite 3000 E friendly repair fixture, no income. Repair uses the same proportional factor; enemies restore shields only, for free. Weapons and movement cost no energy. Full economy remains deferred. Combat ends at elimination of a faction; repair and clock may continue until pause/reset. Actual match terminal rules are deferred.
+- Missile and fighter visuals are cosmetic, so authoritative damage can precede the animated impact. Visual frame counts, scale, quality and effects do not change combat state.
+
+### Executed tests
+
+- Node.js 22.16.0: **25/25 core groups passed** against a checksum-verified local copy of the branch. Includes all 16 retained foundation groups, matrix, shield overflow, friendly-fire rejection, single destruction, range/detection and stable target ties, immunity exclusion, regeneration delay/cost/asymmetry, common repair factor, no movement/firing energy cost, paused commands, positioning and deterministic combat across 30/60/144 FPS schedules.
+- **12/12 intended counter duels won** at equal cost: each class counter at 90-unit and 440-unit starting separation, tested with both faction assignments. Friendly victories: carrier over cruiser 4.55/6.40 s; cruiser over destroyer 12.05/13.25 s; destroyer over carrier 4.05/6.10 s (close/approach simulation time). Reversing faction assignment produces corresponding hostile victories. This is controlled sandbox evidence, not universal balance.
+- Chromium 144.0.7559.96, headless Linux, software/disabled GPU: **29/29 native browser groups passed**, including the retained 40 directional sprite samples, actual Canvas DPR/picking/resize, optional asset fallback, and a new full mixed-fleet comparison at low/medium/high graphics quality. All four weapon families emitted events, destruction occurred and final authoritative state matched exactly across qualities.
+- Separate isolated Chromium app integration passed: launched 13-ship default sandbox; engaged and reached friendly victory, paused and confirmed frozen ticks, switched quality while paused without changing state, changed speed, loaded close-range duel and reached friendly victory, selected/inspected/focused ship, reset to empty scenario, placed both factions, positioned a ship, rejected paused actions and resized to 844×390 landscape. No uncaught page errors. The first run found camera auto-fit zoom could place ships behind panels; corrected overview framing and reran tests.
+- Actual HTTP navigation to the local server was attempted but blocked by the environment (ERR_BLOCKED_BY_ADMINISTRATOR). As with Milestone 1, native source modules were loaded in an isolated Chromium document using an import map of data URLs and inlined existing CSS. Git blob hashes of local application and test code matched branch source; test logic was not substituted. Real hosted launch, physical touchscreen testing, additional browsers and sustained hardware performance remain unverified. No FPS or 200-entity target claim.
+- Visual inspection of captured setup and combat screenshots confirms darker field and bright colored combat effects. Labels can overlap on dense formations; the existing labels toggle and selection inspection remain available. Art style, effect timing and tactical readability are provisional and subject to human feedback.
+
+### Review steps
+
+1. Serve the source root and run /tests/ (29 groups); optional Node core runner: node tests/run.mjs.
+2. Load mixed fleet, Engage, watch weapons and explosions at 1× and 0.5×, zoom or toggle labels as desired.
+3. Run all three counter presets at both starting ranges; inspect remaining shield/hull.
+4. Try custom compositions in Empty range, place ships and reposition them before engagement. Test graphics quality, pause, camera and debug controls.
+5. Review smaller, faster vessels, darker background, more overhead perspective and battle spectacle.
+
+### Deferred
+
+Milestone 3 battlefield generation/navigation/fog/minimap and all later milestones: fleet command, economy/construction, waves, match objective, complete UI, audio and polish. Stop at this review gate until explicit user approval or continuation.
