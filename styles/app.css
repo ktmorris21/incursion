@@ -23,3 +23,5 @@
 .map-key span:nth-child(1){color:#d5a879}.map-key span:nth-child(2){color:#a99570}.map-key span:nth-child(3){color:#ad92e0}.map-key span:nth-child(4){color:#49e8b4}.map-key span:nth-child(5){color:#c5a1ff}
 @media(max-height:650px){.minimap-panel{width:100px;bottom:65px}.map-key{display:none}.sandbox{max-height:calc(100dvh - 132px);overflow:auto}}
 @media(max-width:700px){.minimap-panel{width:94px;bottom:100px;right:6px}.map-key{display:none}}
+
+@media(min-height:651px) and (min-width:601px){.sandbox{max-height:calc(100dvh - 310px);overflow:auto}}
