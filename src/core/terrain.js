@@ -118,8 +118,10 @@ function connectivity(map){
  return {seen,G};
 }
 function gateCount(map,c){
- const samples=360,open=[];
- for(let i=0;i<samples;i++){const a=i*2*Math.PI/samples,p={x:map.base.x+map.gateRadius*Math.cos(a),y:map.base.y+map.gateRadius*Math.sin(a)};open.push(!!c.seen[c.G.cell(p)]&&walkable(map,p,70));}
+ const samples=360,open=[],G=c.G,outer=new Uint8Array(G.g.length),startOuter=anchor(map,map.portals[0],70,G),queue=startOuter>=0?[startOuter]:[];
+ if(startOuter>=0)outer[startOuter]=1;
+ for(let k=0;k<queue.length;k++)for(const [j] of neighbors(queue[k],G))if(!outer[j]&&dist(G.center(j),map.base)>=map.gateRadius-CELL*.9){outer[j]=1;queue.push(j);}
+ for(let i=0;i<samples;i++){const a=i*2*Math.PI/samples,p={x:map.base.x+map.gateRadius*Math.cos(a),y:map.base.y+map.gateRadius*Math.sin(a)};open.push(!!c.seen[G.cell(p)]&&!!outer[G.cell(p)]&&walkable(map,p,70));}
  if(open.every(Boolean))return 1;
  let runs=0,len=0,start=open.indexOf(false);
  for(let k=1;k<=samples;k++){if(open[(start+k)%samples])len++;else{if(len>=3)runs++;len=0;}}return runs;
@@ -159,10 +161,10 @@ function candidate(seed,archetype,attempt){
  const cx=base.x+180,cy=base.y;
  const starts=[base,{x:cx,y:cy},...['carrier','missile','destroyer'].map((kind,i)=>({x:cx+CONFIG.patrol.radii[kind]*Math.cos(i*2*Math.PI/3),y:cy+CONFIG.patrol.radii[kind]*Math.sin(i*2*Math.PI/3)})),{x:base.x-80,y:base.y-260},{x:base.x-80,y:base.y+260}];
  const expectedGates=archetype==='Bastion'?2:archetype==='Crossroads'?4:archetype==='Frontier'?3:3+Math.floor(rng()*2);
- const turn=rng()*2*Math.PI,step=2*Math.PI/expectedGates,angles=Array.from({length:expectedGates},(_,i)=>turn+i*step+j(0,.12));angles.push(angles[0]+2*Math.PI);
- const phase=rng()<.5?-1:1,bend=archetype==='Labyrinth'?.32:archetype==='Bastion'?.20:.15;
+ const turn=rng()*2*Math.PI,step=2*Math.PI/expectedGates,angles=Array.from({length:expectedGates},(_,i)=>turn+i*step+j(0,.22));angles.push(angles[0]+2*Math.PI);
+ const phase=rng()<.5?-1:1,bend=archetype==='Labyrinth'?.25:archetype==='Bastion'?.20:.15;
  const radii=[1020,1290,1570,1850,2180],twists=[0,phase*bend*.45,phase*bend,phase*bend*.6,-phase*bend*.35];
- const neck=archetype==='Bastion'?175:archetype==='Frontier'?230:190,half=[245,neck,420,neck+20,355];
+ const neck=archetype==='Bastion'?175:archetype==='Frontier'?230:archetype==='Labyrinth'?245:190,half=[245,neck,420,neck+20,355];
  const polar=(r,a)=>({x:base.x+r*Math.cos(a),y:base.y+r*Math.sin(a)});
  const side=(angle,sign,k)=>angle+twists[k]+sign*Math.asin(half[k]/radii[k]);
  const dense=[];
