@@ -93,26 +93,55 @@ export function routeWaypoint(map,e,goal,tick){
  while(e.route.points.length&&dist(e,e.route.points[0])<4)e.route.points.shift();
  return e.route.points[0]??null;
 }
-// Distinct gate count across a vertical strategic cut between base and portals.
-// Widths count only full command-ship clearance; each gate must connect to base.
+// Exact polygon separation: crossings, containment and minimum edge distance.
+export const TERRAIN_GAP=45;
+export function regionsConflict(a,b,gap=TERRAIN_GAP){
+ const u=bounds(a),v=bounds(b);
+ if(u.maxX+gap<v.minX||v.maxX+gap<u.minX||u.maxY+gap<v.minY||v.maxY+gap<u.minY)return false;
+ if(inside(a.points[0],b)||inside(b.points[0],a))return true;
+ for(let i=0;i<a.points.length;i++){const p=a.points[i],q=a.points[(i+1)%a.points.length];
+  for(let j=0;j<b.points.length;j++){const r=b.points[j],t=b.points[(j+1)%b.points.length];
+   if(intersects(p,q,r,t)||Math.min(pointSeg2(p,r,t),pointSeg2(q,r,t),pointSeg2(r,p,q),pointSeg2(t,p,q))<gap*gap)return true;
+  }
+ }return false;
+}
+export function portalApproach(map,p){
+ const dx=map.base.x-p.x,dy=map.base.y-p.y,d=Math.hypot(dx,dy);return {x:p.x+dx/d*100,y:p.y+dy/d*100};
+}
+export function portalFormation(map,p){
+ const dx=map.base.x-p.x,dy=map.base.y-p.y,d=Math.hypot(dx,dy);return [-100,0,100].map(offset=>({x:p.x-dy/d*offset,y:p.y+dx/d*offset}));
+}
 function connectivity(map){
  const r=70,G=grid(map,r),{g}=G,start=anchor(map,map.base,r,G);if(start<0)return null;
  const seen=new Uint8Array(g.length),q=[start];seen[start]=1;
  for(let k=0;k<q.length;k++)for(const [j] of neighbors(q[k],G))if(!seen[j]){seen[j]=1;q.push(j);}
  return {seen,G};
 }
+function gateCount(map,c){
+ const samples=360,open=[];
+ for(let i=0;i<samples;i++){const a=i*2*Math.PI/samples,p={x:map.base.x+map.gateRadius*Math.cos(a),y:map.base.y+map.gateRadius*Math.sin(a)};open.push(!!c.seen[c.G.cell(p)]&&walkable(map,p,70));}
+ if(open.every(Boolean))return 1;
+ let runs=0,len=0,start=open.indexOf(false);
+ for(let k=1;k<=samples;k++){if(open[(start+k)%samples])len++;else{if(len>=3)runs++;len=0;}}return runs;
+}
 export function validateMap(map){
  const errors=[],c=connectivity(map);if(!c)return {ok:false,errors:['base blocked'],corridors:0};
  const reachable=p=>{const i=anchor(map,p,70,c.G);return i>=0&&!!c.seen[i];};
- for(const p of [...map.starts,...map.deposits,...map.portals,...(map.emergence??[]),...map.portals.map(p=>({x:p.x-100,y:p.y}))])if(!reachable(p))errors.push('unreachable site');
- for(const p of [...map.starts,...map.deposits,...map.portals,...(map.emergence??[])])if(!walkable(map,p,70))errors.push('blocked site');
+ const sites=[...map.starts,...map.deposits,...map.portals,...map.emergence,...map.portals.map(p=>portalApproach(map,p))];
+ for(const p of sites)if(!walkable(map,p,70)||!reachable(p))errors.push('unreachable site');
+ const regions=[...map.dense,...map.sparse,...map.nebula];
+ for(let i=0;i<regions.length;i++){const z=regions[i],b=bounds(z);
+  if(b.minX<0||b.minY<0||b.maxX>map.width||b.maxY>map.height)errors.push('terrain outside world');
+  if(sites.some(p=>pointBlocked(p,z,100)))errors.push('terrain obstructs critical site');
+  for(let j=0;j<i;j++)if(regionsConflict(z,regions[j]))errors.push('terrain overlap or insufficient gap');
+ }
+ if(map.base.x!==map.width/2||map.base.y!==map.height/2)errors.push('base not centered');
+ if(map.dense.some(z=>pointBlocked(map.base,z,map.safeRadius)))errors.push('starting chamber obstructed');
+ if(map.portals.some(p=>Math.min(p.x,p.y,map.width-p.x,map.height-p.y)>500)||new Set(map.portals.map(p=>p.edge)).size!==map.portals.length)errors.push('portal not on distinct perimeter edge');
+ if(map.sparse.length!==4||map.nebula.length!==3)errors.push('missing environmental regions');
  const total=map.deposits.reduce((s,p)=>s+p.yield,0),outside=map.deposits.filter(p=>dist(p,map.base)>map.safeRadius).reduce((s,p)=>s+p.yield,0)/total;
  if(outside<.45||outside>.55)errors.push('yield split');
- const col=Math.floor(map.cut/CELL),runs=[];let len=0;
- for(let y=0;y<c.G.m;y++){if(c.seen[y*c.G.n+col])len++;else if(len){runs.push(len);len=0;}}if(len)runs.push(len);
- const corridors=runs.filter(n=>n>=2).length;
- if(map.archetype==='Crossroads'&&corridors<4)errors.push('corridor diversity');
- if(map.archetype==='Bastion'&&corridors>3)errors.push('bastion too open');
+ const corridors=gateCount(map,c);if(corridors!==map.expectedGates)errors.push('corridor diversity');
  return {ok:!errors.length,errors,corridors,outside};
 }
 // Seeded irregular ribbon. A monotonic longitudinal spine with tapered,
@@ -123,23 +152,46 @@ function ribbon(rng,x,y,length,width,angle,bend=.18){
   const q=(v)=>({x:x+t*co-v*si,y:y+t*si+v*co});pts.push(q(curve+w));other.push(q(curve-w*(.8+rng()*.35)));}
  const points=pts.concat(other.reverse()),region={x,y,points};region.bounds=bounds(region);return region;
 }
+// Carve winding passages and open chambers between solid asteroid masses.
 function candidate(seed,archetype,attempt){
  const rng=seededRandom(seed+'|'+archetype+'|'+attempt),j=(v,n)=>v+(rng()-.5)*2*n;
- const {width,height}=CONFIG.sector,cut=j(2900,140),base={x:780,y:j(2850,180)},safeRadius=1100;
+ const {width,height}=CONFIG.sector,base={x:width/2,y:height/2},safeRadius=850,gateRadius=1290;
  const cx=base.x+180,cy=base.y;
  const starts=[base,{x:cx,y:cy},...['carrier','missile','destroyer'].map((kind,i)=>({x:cx+CONFIG.patrol.radii[kind]*Math.cos(i*2*Math.PI/3),y:cy+CONFIG.patrol.radii[kind]*Math.sin(i*2*Math.PI/3)})),{x:base.x-80,y:base.y-260},{x:base.x-80,y:base.y+260}];
- const deposits=[{x:430,y:base.y-520,yield:18},{x:430,y:base.y+520,yield:22},{x:4550,y:j(950,160),yield:19},{x:4550,y:j(4750,160),yield:21}];
- const portals=[950,2850,4750].map(y=>({x:5250,y:j(y,110)})),emergence=portals.flatMap(p=>[-100,0,100].map(dy=>({x:p.x,y:p.y+dy}))),dense=[];
- const sites=[...starts,...deposits,...portals,...emergence,...portals.map(p=>({x:p.x-100,y:p.y}))];
- const add=(x,y,len,w,angle)=>{const z=ribbon(rng,x,y,len,w,angle);if(sites.every(p=>!pointBlocked(p,z,140)))dense.push(z);};
- if(archetype==='Crossroads'){for(const y of [1425,2850,4275])add(cut,j(y,65),j(1450,100),j(230,30),j(0,.09));}
- else if(archetype==='Bastion'){for(const y of [900,4800])add(cut,j(y,55),j(2350,100),j(410,40),Math.PI/2+j(0,.025));}
- else if(archetype==='Frontier'){for(const y of [1500,3900])add(cut,j(y,180),j(1600,170),j(300,40),j(.55,.25));}
- else {for(const [x,y,len,w,ang] of [[2200,1250,1700,330,.8],[2200,3850,1700,320,-.65],[3350,2300,1900,390,1.1],[3650,4900,1400,300,-.5],[4200,1050,1150,240,.65]])add(j(x,100),j(y,100),j(len,90),j(w,35),j(ang,.12));}
- for(const [x,y,ang] of [[1550,700,.35],[4100,2850,-.4],[1600,5050,.15]])add(j(x,100),j(y,100),j(750,100),j(160,25),ang);
- const sparse=Array.from({length:4},(_,i)=>ribbon(rng,j([1800,3100,4300,3200][i],200),j([2200,4400,1300,650][i],180),j(1450,200),j(440,70),j([.5,-.5,.85,.1][i],.25),.5));
- const nebula=Array.from({length:3},(_,i)=>ribbon(rng,j([2000,3850,4250][i],220),j([3500,1900,3950][i],200),j(2150,250),j(820,150),j([-.65,.4,.85][i],.25),.7));
- return {seed,archetype,attempt,width,height,base,safeRadius,cut,starts,deposits,portals,emergence,dense,sparse,nebula,activePortal:Math.floor(rng()*portals.length)};
+ const expectedGates=archetype==='Bastion'?2:archetype==='Crossroads'?4:archetype==='Frontier'?3:3+Math.floor(rng()*2);
+ const turn=rng()*2*Math.PI,step=2*Math.PI/expectedGates,angles=Array.from({length:expectedGates},(_,i)=>turn+i*step+j(0,.12));angles.push(angles[0]+2*Math.PI);
+ const phase=rng()<.5?-1:1,bend=archetype==='Labyrinth'?.32:archetype==='Bastion'?.20:.15;
+ const radii=[1020,1290,1570,1850,2180],twists=[0,phase*bend*.45,phase*bend,phase*bend*.6,-phase*bend*.35];
+ const neck=archetype==='Bastion'?175:archetype==='Frontier'?230:190,half=[245,neck,420,neck+20,355];
+ const polar=(r,a)=>({x:base.x+r*Math.cos(a),y:base.y+r*Math.sin(a)});
+ const side=(angle,sign,k)=>angle+twists[k]+sign*Math.asin(half[k]/radii[k]);
+ const dense=[];
+ for(let i=0;i<expectedGates;i++){
+  const a=angles[i],b=angles[i+1],points=[];
+  for(let k=0;k<radii.length;k++)points.push(polar(radii[k],side(a,1,k)));
+  let lo=side(a,1,4),hi=side(b,-1,4),n=Math.ceil((hi-lo)/.16);
+  for(let k=1;k<n;k++)points.push(polar(j(2180,80),lo+(hi-lo)*k/n));
+  for(let k=radii.length-1;k>=0;k--)points.push(polar(radii[k],side(b,-1,k)));
+  lo=side(a,1,0);hi=side(b,-1,0);n=Math.ceil((hi-lo)/.16);
+  for(let k=n-1;k>0;k--)points.push(polar(j(1020,70),lo+(hi-lo)*k/n));
+  const center=polar(1600,(a+b)/2+twists[2]),z={...center,points};z.bounds=bounds(z);dense.push(z);
+ }
+ const edges=[0,1,2,3];for(let i=edges.length-1;i>0;i--){const k=Math.floor(rng()*(i+1));[edges[i],edges[k]]=[edges[k],edges[i]];}
+ const portals=edges.slice(0,3).map(edge=>{const u=j(width/2,950),inset=j(275,50);return {...(edge===0?{x:u,y:inset}:edge===1?{x:width-inset,y:u}:edge===2?{x:u,y:height-inset}:{x:inset,y:u}),edge};});
+ const nearAngle=rng()*2*Math.PI,near=[polar(610,nearAngle),polar(610,nearAngle+Math.PI)];
+ const corners=[{x:650,y:650},{x:width-650,y:650},{x:width-650,y:height-650},{x:650,y:height-650}],corner=Math.floor(rng()*4);
+ const deposits=[{...near[0],yield:18},{...near[1],yield:22},{...corners[corner],yield:19},{...corners[(corner+2)%4],yield:21}];
+ const emergence=portals.flatMap(p=>portalFormation({base},p)),sites=[...starts,...deposits,...portals,...emergence,...portals.map(p=>portalApproach({base},p))];
+ const sparse=[],nebula=[],all=[...dense];
+ for(const [out,count,length,widthRange] of [[nebula,3,930,420],[sparse,4,690,245]]){
+  for(let k=0;k<count;k++)for(let tries=0;tries<140;tries++){
+   const x=j(width/2,width/2-380),y=j(height/2,height/2-380),r=dist({x,y},base);if(r<2350)continue;
+   const z=ribbon(rng,x,y,j(length,120),j(widthRange,55),j(Math.atan2(y-base.y,x-base.x)+Math.PI/2,.6),.35),b=z.bounds;
+   if(b.minX<90||b.minY<90||b.maxX>width-90||b.maxY>height-90||sites.some(p=>pointBlocked(p,z,145))||all.some(v=>regionsConflict(z,v)))continue;
+   out.push(z);all.push(z);break;
+  }
+ }
+ return {seed,archetype,attempt,width,height,base,safeRadius,gateRadius,expectedGates,starts,deposits,portals,emergence,dense,sparse,nebula,activePortal:Math.floor(rng()*portals.length)};
 }
 export function fallbackMap(seed,archetype){
  const map=candidate('validated-fallback',archetype,0),validation=validateMap(map);
