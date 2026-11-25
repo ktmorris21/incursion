@@ -78,3 +78,29 @@ Milestone 3 battlefield generation/navigation/fog/minimap and all later mileston
 ### Milestone 2 visual refinement
 
 User requested less cartoonish ships and removal of circular background artifacts. Muted hull palettes, reduced emissive accents and edge highlights, added subtle hull seams and hatch details. Removed large radial background clouds; replaced them with faint oblique dust bands over the near-black starfield. No combat, camera, ship speed, scale or simulation changes. Local core suite rerun: 25/25 passed. Browser visual review and native Canvas tests for this refinement remain outstanding. Remain at Milestone 2.
+
+## Reopened Milestone 1 — Planar 3D vessel silhouette refinement (spec 1.2)
+
+The earlier Canvas 2D entries are historical. Current review gate remains Milestone 1 of the planar 3D foundation; combat presentation and sandbox progression remain deferred.
+
+### Changes
+
+- Missile cruiser (both factions): distinct twin longitudinal armored launcher banks, visible launch cells, separated central keel and open magazine channels. Hostile bank outlines remain faceted and segmented. 
+- Command frigate: elongated narrow command spine, swept aft communications outriggers and tall bridge with twin antenna masts.
+- Miner: compact nearly square heavy extraction chassis, paired circular processing drums, horizontal storage tanks and blunt extraction nose.
+- Constructor: open-front U-frame, two asymmetric articulated fabrication arms with joints and claw tools, rear machinery deck and offset operator cab.
+- Preserve existing model origin, +X forward convention, 0.52 ship scale, faction material scheme, registry clone/cache/disposal behavior, and the unchanged station/carrier/destroyer geometry. No simulation, combat statistics, camera, UI, dependencies or milestone scope changes. All equipment is cosmetic at this gate.
+
+### Executed verification
+
+- Existing 23 core groups passed from the pre-change main commit.
+- Compiled and instantiated all ten supported model/faction templates with recording geometry stand-ins: finite positions, shared resource ownership, unchanged station/carrier/destroyer templates, retained scale and registry cleanup verified.
+- Retrieved the actual vendored Three.js r170 source via its Git blob and executed the real geometry and raycasting code in a JavaScript isolate. All **25/25 core test groups** passed, including two added CPU-only geometry regressions. Imports/exports were adapted to isolate module bindings and timing used Date.now(); test bodies and mesh operations were unchanged. No WebGL calls were substituted or represented as passing.
+- Actual local-space raycasts verified the cruiser magazine gaps (both factions), frigate's narrow prow, swept outriggers and elevated bridge, miner's solid compact footprint, and constructor's empty forward center with two physical arms. Tested projected binary silhouettes of all four friendly classes at five headings under the configured 60-degree camera, independent of labels and material color. All 30 pair/heading comparisons remained below the chosen provisional 80% intersection-over-union ceiling. An initial equivalent sampling run measured maximum overlap approximately 76% (cruiser/miner); this is a geometric proxy, not a human readability study.
+- Model and test changes committed directly to main. Geometry tests are part of both node tests/run.mjs and the native browser harness at /tests/.
+
+### Verification limits / review
+
+The execution container cannot resolve GitHub or CDN hostnames, so cloning the repository into a browser-capable environment was unavailable. The connector's blob endpoint made the real Three.js CPU tests possible, but actual WebGL rendering, visual inspection at the default overview/low zoom, native browser harness, real devices and draw-call/frame-rate impact have not been verified in this increment. The launcher cruiser now has more individual meshes; performance remains subject to later profiling. The 80% overlap ceiling is a provisional regression threshold, not a guarantee of player recognition.
+
+For human review, reload the hosted foundation, turn Labels off, and compare the four friendly ships and hostile cruiser at normal overview and zoomed views; verify the four silhouettes are readily identifiable. Stay at Milestone 1 until the user approves the next gate.
