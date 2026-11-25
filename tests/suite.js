@@ -1,6 +1,8 @@
+import {ARCHETYPES,generateMap,fallbackMap,findPath,segmentClear,walkable,clearance,speedFactor,sensorFactor,detected} from '../src/core/terrain.js';
+import {TerrainView} from '../src/rendering/terrain.js';
 import * as T from '../vendor/three.module.js';
 import {CONFIG,COMBAT} from '../src/config.js';
-import {createState,makeBattle,makeDemo,spawn,destroy,drainEvents,step,poseAt,applyCommand,canPosition} from '../src/core/state.js';
+import {createState,makeBattle,makeTerrainBattle,makeDemo,spawn,destroy,drainEvents,step,poseAt,applyCommand,canPosition} from '../src/core/state.js';
 import {FixedClock} from '../src/core/clock.js';
 import {seededRandom} from '../src/core/math.js';
 import {Camera,canvasSize,resizeCanvas,depthSort,headingFrame} from '../src/rendering/projection.js';
@@ -226,7 +228,54 @@ coreTests.push(
   for(let i=0;i<s.entities.length;i++)for(let j=i+1;j<s.entities.length;j++){const u=s.entities[i],v=s.entities[j];assert(Math.hypot(u.x-v.x,u.y-v.y)>=separationDistance(u,v)-1,'separation '+u.id+'/'+v.id);}
  }]
 );
+coreTests.push(
+ ['Geography: 1,000 seeded maps, all archetypes, resource balance and validated fallback',()=>{
+  for(const archetype of ARCHETYPES){
+   for(let i=0;i<250;i++){
+    const m=generateMap('survey-'+i,archetype);assert(m.validation.ok);assert(m.validation.outside>=.45&&m.validation.outside<=.55);eq(m.deposits.length,4);eq(m.portals.length,3);assert(m.activePortal>=0&&m.activePortal<3);
+    if(archetype==='Crossroads')assert(m.validation.corridors>=4);if(archetype==='Bastion')assert(m.validation.corridors<=3);
+    if(i===0)eq(m,generateMap('survey-'+i,archetype));
+   }assert(fallbackMap('fallback-test',archetype).validation.ok);
+  }
+  assert(JSON.stringify(generateMap('different-A','Frontier').dense)!==JSON.stringify(generateMap('different-B','Frontier').dense));
+ }],
+ ['Navigation: conservative A star detours, smoothing, blocked endpoints and clearance',()=>{
+  const map={dense:[{x:900,y:900,r:180}],sparse:[],nebula:[]},a={x:450,y:900},b={x:1350,y:900};
+  assert(!segmentClear(map,a,b,70));const route=findPath(map,a,b,70);assert(route&&route.length>1);let p=a;
+  for(const q of route){assert(segmentClear(map,p,q,70));p=q;}eq(p,b);eq(findPath(map,a,{x:900,y:900},70),null);
+ }],
+ ['Navigation: command ship crosses all four generated archetypes and all hulls stay clear',()=>{
+  for(const archetype of ARCHETYPES){
+   const s=makeTerrainBattle('incursion-01',archetype,false),e=s.entities.find(e=>e.kind==='frigate'),goal={x:1450,y:900};
+   assert(applyCommand(s,{type:'position',id:e.id,...goal}).ok);
+   for(let i=0;i<700;i++){step(s);drainEvents(s);for(const a of s.entities)assert(walkable(s.map,a,clearance(a)),archetype+' hull '+a.id);}
+   near(e.x,goal.x,.1);near(e.y,goal.y,.1);
+   const blocked=s.map.dense[0];assert(!applyCommand(s,{type:'position',id:e.id,x:blocked.x,y:blocked.y}).ok);
+   assert(!applyCommand(s,{type:'spawn',data:{kind:'carrier',faction:'friendly',x:blocked.x,y:blocked.y}}).ok);
+  }
+ }],
+ ['Terrain penalties: sparse movement, nebula source range and current contacts',()=>{
+  const s=makeBattle('empty'),a=spawn(s,{kind:'carrier',faction:'friendly',x:500,y:500}),b=spawn(s,{kind:'missile',faction:'hostile',x:850,y:500});
+  s.map={dense:[],sparse:[{x:500,y:500,rx:200,ry:200}],nebula:[{x:500,y:500,rx:150,ry:150}]};
+  near(speedFactor(s.map,a),.65);near(sensorFactor(s.map,a),.65);near(sensorFactor(s.map,b),1);
+  eq(nearest(a,s.entities,480,true,s.map),null);assert(detected(s,b));b.x=1050;assert(!detected(s,b));s.preview=true;assert(detected(s,b));s.preview=false;
+  assert(applyCommand(s,{type:'position',id:a.id,x:600,y:500}).ok);const x=a.x;step(s);near(a.x-x,270*.65/20);
+ }],
+ ['Map preview freezes simulation and rejects gameplay; accepted map deterministic',()=>{
+  const s=makeTerrainBattle('preview-test','Crossroads'),before=JSON.stringify(s);step(s);eq(JSON.stringify(s),before);
+  assert(!applyCommand(s,{type:'engage'}).ok);s.preview=false;step(s);eq(s.tick,1);
+  const run=fps=>{const a=makeTerrainBattle('same-seed','Crossroads',false),c=new FixedClock(dt=>step(a,dt));for(let i=0;i<fps*3;i++)c.advance(1/fps);return a;};eq(run(30),run(144));
+ }],
+ ['3D terrain: geometry matches map bounds, route display and reset',()=>{
+  const scene=new T.Scene(),view=new TerrainView(scene),map=generateMap('mesh-check','Crossroads');
+  try{view.update(map,0,[map.portals[0]],map.base,true);assert(view.path);assert(view.root.children.length>50);const dense=map.dense[0];
+   const boundary=view.root.children.find(o=>o.geometry?.type==='RingGeometry'&&o.position.x===dense.x&&o.position.z===dense.y&&o.scale.x===dense.r);assert(boundary);near(boundary.scale.y,dense.r);
+   const old=view.root.children.length;view.update(map,1,null,null,false);eq(view.path,null);eq(view.root.children.length,old-1);view.clear();eq(view.resources.size,0);eq(view.root.children.length,0);
+  }finally{view.dispose();}eq(scene.children.length,0);
+ }]
+);
 export const browserTests=[
+ ['WebGL: generated map renders terrain, fog contacts and route overlay',()=>{const canvas=document.createElement('canvas'),c=new Camera(800,500),r=new BattlefieldRenderer(canvas,c),s=makeTerrainBattle('webgl-test','Crossroads');try{r.resize(800,500,1,'medium');c.fit();r.draw(s,1);assert(r.terrain.root.children.length>50);eq(r.contacts.size,s.entities.length);s.preview=false;r.draw(s,1);assert(r.contacts.size<s.entities.length);assert(r.gl.getContext().getError()===0);r.reset();eq(r.terrain.root.children.length,0);}finally{r.dispose();}}],
  ['WebGL: live combat draws effects and health overlays at all qualities',()=>{const canvas=document.createElement('canvas'),c=new Camera(800,500),r=new BattlefieldRenderer(canvas,c),s=makeBattle();applyCommand(s,{type:'engage'});try{for(const q of ['low','medium','high']){r.resize(800,500,1,q);for(let i=0;i<40;i++){step(s);r.addEvents(drainEvents(s),s.time);r.draw(s,1);}assert(r.gl.info.render.triangles>0);assert(r.gl.getContext().getError()===0);}assert(r.overlay.children.length>0);assert(r.effects.materials.size>0);r.reset();eq(r.effects.events.length,0);eq(r.effects.root.children.length,0);}finally{r.dispose();}}],
  ['WebGL: models render, pick and resize without mutating simulation',()=>{const canvas=document.createElement('canvas'),c=new Camera(800,500),r=new BattlefieldRenderer(canvas,c),s=makeDemo(),before=JSON.stringify(s);r.resize(800,500,2,'high');r.draw(s,1);eq([canvas.width,canvas.height],[1600,1000]);assert(r.gl.info.render.triangles>0);assert(r.gl.getContext().getError()===0);const e=s.entities[0];c.focus(e.x,e.y);r.draw(s,1);assert(r.pick(400,250)!==null);r.resize(390,844,3,'medium');r.draw(s,1);eq([canvas.width,canvas.height],[585,1266]);eq(JSON.stringify(s),before);r.dispose();eq(r.registry.cache.size,0);}],
  ['WebGL: mesh assets and resource ownership',()=>{const r=new ModelRegistry();for(const [kind,faction] of [['station','friendly'],['frigate','friendly'],['carrier','friendly'],['missile','friendly'],['destroyer','friendly'],['miner','friendly'],['constructor','friendly'],['carrier','hostile'],['missile','hostile'],['destroyer','hostile']]){const a=r.get(kind,faction),b=r.get(kind,faction);assert(a!==b);let count=0;a.traverse(o=>{if(o.isMesh){count++;assert(o.geometry.attributes.position.count>0);assert(o.material.isMeshStandardMaterial);}});assert(count>5);}assert(r.geometry.size>0);r.clear();eq(r.geometry.size,0);eq(r.materials.size,0);}],
