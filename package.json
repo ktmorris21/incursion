@@ -1,1 +1,0 @@
-{"name":"incursion","private":true,"type":"module","scripts":{"test":"node tests/run.mjs"}}

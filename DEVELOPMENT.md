@@ -1,33 +1,41 @@
-# Development report — first playable build
+# Development log — spec 1.1
 
-## Delivery and blockers
+## Milestone 1 — Application foundation (ready for human review)
 
-The GitHub connector could read `ktmorris21/incursion` and `GAME_SPEC.md` from main at `ab048a13bf5e9da51c6267fa5152e68f21a56113`. Both contents creation and Git blob creation returned HTTP 403, `Resource not accessible by integration`; direct Git networking was unavailable. No repository files were modified. The delivered ZIP is the local source tree; retain the existing `GAME_SPEC.md` when merging it into the repo.
+### Implemented
 
-The pinned Three.js r170 source was readable via the connector but could not be written to the repo or transferred to the local build runtime. The renderer therefore uses native WebGL triangle geometry and Canvas tactical effects with no runtime network dependency. This does NOT satisfy the specified Three.js and GLB-loader requirement. The game simulation is renderer-independent so this can be replaced.
+Fresh source, replacing the preceding WebGL-based development build. Native Canvas 2D and ES modules only. No third-party dependencies or runtime assets. Fixed oblique orthographic projection (0.65 vertical compression), cursor-anchored zoom, pan, fit, picking, stable depth ordering, CSS/backing-store coordinate separation and DPR/quality cap. Deterministic 20 Hz clock with interpolation, bounded catch-up, pause, explicit resume on visibility loss and three simulation speeds. Plain-data entity records, validated debug lifecycle commands, original cached 24-heading-frame shaded sprite artwork, layered parallax starfield, inspector and diagnostics.
 
-## Implemented
+The demo contains 11 representative entities (including a scripted moving frigate); it is not a starting roster or tactical encounter. Hostile samples are only the three primary combat classes. The display ground anchors and ellipse picking sizes are provisional visual values, not physical hitboxes.
 
-Seeded map preview and four named terrain-density archetypes, bounded generation retries and fallback, two nearby/two exposed equal-yield deposits, four potential portal sites, weighted grid A*, nebula modifiers, fog, minimap; all approved units and structures, command slots, capacity reservations, reinforcement transit, command loss and physical collection, mining, proportional energy allocation, serial queues, constructors, two weapon towers and explicit barrier lines; escalating automatic waves, recovery gating, relocation, device lifecycle, terminal results, statistics; native menu, fleet/context panels, tutorial, settings, keyboard/mouse/touch input, procedural WebGL models, combat effects and synthesized audio.
+### Executed test evidence
 
-## Tuning
+- Node.js 22.16.0: **16/16 core test groups passed**, including 800 world/screen round trips over desktop/portrait/landscape sizes, zoom anchoring, stable depth ties, DPR caps, entity IDs, single destruction events, invalid/paused command rejection, fixed step/speed, pause/catch-up, deterministic state at 30/60/144 render FPS, interpolation, atlas metadata/fallback and reset.
+- Chromium 144.0.7559.96 (headless Linux environment, software/disabled GPU, isolated local document): **19/19 native browser test groups passed** (the same core tests plus three Canvas integration groups). Actual Canvas drawing, 40 directional sprite samples, overlapping picking, DPR resizing, and rendering independence were verified.
+- Separate app interaction checks in the same Chromium environment: desktop launch, selection/focus, paused clock, one-tick debug advance, debug spawn/removal, speed change, middle-mouse pan, cursor wheel zoom, quality switch, DPR 2 desktop resize to landscape, reset, and synthetic visibility-change pause with explicit resume. Emulated 844×390 touch viewport at device DPR 3: auto quality capped backing DPR at 1.5, tap selection, two-finger pinch and one-finger pan preserved selection. No uncaught page errors in the final run.
+- An initial browser smoke test caught an invalid hostile constructor debug spawn caused by inherited property lookup. Fixed faction validation and own-property lookup, then reran the suites and interaction checks.
+- Reviewed captured desktop and emulated landscape screenshots for representative sprite readability and overall layout.
 
-The accepted 2× / 0.75× counter matrix, 3 frigates / 10 subordinate slots, base combat statistics and charge durations remain unchanged. The provisional baseline command station income was increased from 60 to 90 E/s after scripted strategies repeatedly lost before charge completion at 60. Deposit yield stays 20 E/s; aggregate exposed yield remains exactly 50%. Duration scaling is applied to income and nominal work rates. This change is provisional and needs human balance review; it does not establish equivalent difficulty across presets.
+### Verification limits
 
-## Verified simulation results
+The environment blocked ordinary local HTTP browser navigation with `ERR_BLOCKED_BY_ADMINISTRATOR`. The actual app and native test modules were exercised in an isolated `about:blank` document by substituting local module import specifiers with in-memory data URLs and inlining the existing CSS; no application behavior was substituted. The ordinary static-server launch and relative module loading remain to be confirmed by the reviewer on their machine or host. Real Android/iOS hardware, Safari/Firefox/Edge, actual browser tab switching and sustained device performance have not been validated. Visibility handling was tested via a synthetic event. No FPS target or 200-entity stress claim is made at this gate. The debug panel reports observed frame/step timings for local review; performance profiling is deferred to the appropriate milestone.
 
-- Node v22.16.0, local Linux execution environment: native test suite passed (see test output). The suite checks 1,000 reproducible map seeds, combat matrix, six counter duel fixtures, shield overflow and destruction, common allocation, regen, mining, construction, wall links and crossing, queue limits, reinforcement loss, collection, fog, wave sequencing, relocation, device drop/recovery/deployment, and terminal/pause precedence.
-- Baseline 60 E/s: multiple scripted 10-minute Commander and Cadet matches reached defeat; no successful delivery was observed.
-- Adjusted 90 E/s: `node tests/scenario.mjs sector-01 10` (Cadet) reached victory at 620.20 simulation seconds, six waves defeated, 55 hostile losses, 66 structures built, 279 accepted ordinary commands and zero rejected commands; HQ hull 1,200. Runtime approximately 11.6 seconds in the local Node environment. A second seed, `cadet-1`, reached defeat after 10 defeated waves and 113 hostile losses, with device dropped. No claim of broad balance or guaranteed victory.
-- Chromium launch succeeded, but navigation to the local HTTP server failed with `ERR_BLOCKED_BY_ADMINISTRATOR` due to managed browser policy. Thus the native browser page and actual rendering/interaction could not be executed in this environment. JavaScript syntax and simulation were tested under Node only. No mobile device, frame rate, visual screenshot or browser performance evidence is available.
+### Decisions / assumptions
 
-## Outstanding acceptance work
+- Follow spec 1.1 projection compression 0.65, 1,800×1,800 world, 20 Hz fixed steps, and 0.5×/1×/2× speeds. No combat/economy tuning changed; those systems do not yet exist.
+- Camera zoom 0.22–3.0, 24 cached heading frames, DPR limit 2.0, touch auto-quality medium (1.5 cap), desktop high (2.0 cap). These are provisional display choices. Quality controls do not alter authoritative simulation.
+- A 0.25-second real frame cap and 10-step catch-up cap discard excessive backlog; diagnostic counter reports dropped simulation seconds. Pause clears accumulation; hidden-tab time is never replayed.
+- The starfield and colored atmospheric shading are decorative, not gameplay nebulae. The fixture motion exists only to demonstrate time scaling/interpolation. No pathfinding, combat or orders are implied.
+- Labels are suppressed at very low zoom to preserve readability. The inspector can collapse; touch targets and compact landscape layout are initial versions. External artwork supports local PNG/WebP/SVG/atlas descriptors, with cached procedural fallback. Actual external custom assets have not yet been integrated.
 
-This is an integrated playable development candidate, not full specification compliance or production readiness. Remaining known gaps include:
+### Review steps
 
-- Restore pinned local Three.js and GLB asset registry/fallback; visual polish (true curved enemy hulls, fuller carrier recovery animations, trails, debris, welding/assembly, portal effects, reduced-flash option) and richer differentiated audio. Graphics quality currently mainly affects resolution.
-- A* respects dense terrain and hostile wall intersections, but uses basic waypoint routing, partial-route/breach fallback and formation offsets rather than fully validated smooth paths, local separation, staggered group-route sharing, or a measured stuck detector. Map validation checks reachability and yield split, not measured corridor diversity or a guaranteed >3 approach corridor archetype. Enemy groups have secondary objective assignment but not advanced tactical route splitting/weighted breach planning. No 200-entity performance target has been verified.
-- UI includes functional tactical overlays, health bars, queues, civilian and roster panels, minimap and tutorial, but richer placement feedback, per-consumer live breakdowns, relocation/device map markers, alert coverage, accessibility and landscape touch ergonomics need a browser pass. Diagnostic panel is intentionally basic (selection state, timing, reserve/wave/charge/relocation/damage/step actions); full spawn/reset/drop controls and all path/influence overlays remain outstanding.
-- Native tests are meaningful but do not cover every acceptance case in the specification: e.g. precise targeting tie-break fixtures, compression and breach scenarios, clock across render rates, persistence/hidden-tab/reset UI behavior, mobile devices, and full manual normal-mode match. Browser acceptance, performance measurements, and balance tuning across all difficulties/durations remain necessary.
+1. Serve the source root and launch the scene; visit `/tests/` and confirm all tests pass.
+2. Pan, zoom, inspect and focus ships, assess silhouette, lighting and faction distinction. Resize and try touch if available.
+3. Pause; confirm the motion fixture stops and camera navigation still works. Switch speed and resume; observe fixture motion. Switch browser tabs and confirm explicit resume is required.
+4. Open `/?debug`; check the world/screen grid and pointer coordinates, single step while paused, spawn/remove while running, reset and inspect the timing indicators.
+5. Provide feedback on artwork, sprite size, fixed camera feel and initial UI direction.
 
-Adopted assumptions: A1/A2 no line-of-sight weapon obstruction and neutral classes; A3 explicit linked wall posts, physical sequential initiation; A4 vulnerable started projects, pending footprint reservation; A5 25% spent refund and pending-only reordering; A6 storage cap clamping; A7 reinforcement invulnerability and physical collection; A8 movement precedence; A9 unique device and interrupted deployment reset; A10 complete-wave gating; A11 protected region radius 350 units; A12 completed structure influence; A13 20 history entries and hidden-tab pause; A14 orthographic-style angled view; A15 no explicit population cap.
+### Deferred
+
+Milestone 2 combat sandbox (targeting, counter matrix, shields/hull, destruction effects, regeneration, controlled battles and weapon spectacle); Milestones 3–8 battlefield generation, fleet control, economy, enemy waves, full match, audio and polish. Do not proceed past this gate until the user approves or requests continuation.

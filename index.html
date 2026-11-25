@@ -1,10 +1,35 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><title>Incursion | Strategic Defense</title><link rel="stylesheet" href="styles/app.css"></head><body>
-<main id="battlefield"><canvas id="world" aria-label="Space battlefield"></canvas><canvas id="overlay" aria-label="Battlefield controls"></canvas></main>
-<div id="hud" hidden><header><div class="brand">INCURSION <small>DEFENSE COMMAND</small></div><div class="metric"><small>ENERGY RESERVES</small><strong id="energy">—</strong><span id="flow"></span></div><div class="metric"><small>ENEMY INCURSION</small><strong id="wave">—</strong><span id="threat"></span></div><div class="metric charge"><small>DESTABILIZER</small><strong id="device">—</strong><progress id="charge" max="1"></progress></div><div class="toolbar"><button id="pause">Ⅱ Pause</button><button id="speed">1×</button><button id="settingsBtn">⚙</button><button id="menuBtn">Menu</button></div></header>
-<aside id="fleetPanel"><h3>FLEET COMMAND</h3><div id="fleets"></div><button id="rosterBtn">Fleet roster</button><h3>CIVILIAN OPERATIONS</h3><div id="civilians"></div><button id="economyBtn">Energy economy</button><button id="helpBtn">Field manual</button></aside>
-<aside id="context"><div class="panel-head"><h3>ASSET CONTROL</h3><button id="closeContext" aria-label="Collapse panel">−</button></div><div id="details"></div></aside>
-<div id="minimapBox"><div class="panel-head"><h3>TACTICAL MAP</h3><select id="rings" aria-label="Tactical overlay"><option value="none">Overlay off</option><option value="range">Weapons</option><option value="sensor">Sensors</option><option value="influence">Influence</option></select></div><canvas id="minimap" width="220" height="220"></canvas><div class="legend"><span>● Friendly</span><span>● Hostile</span><span>◆ Portal</span></div></div>
-<div id="alerts" aria-live="polite"></div><div id="buildbar" hidden><span id="buildText"></span><button id="confirmBuild">Confirm</button><button id="cancelBuild">Cancel</button></div><div id="debug" hidden></div></div>
-<div id="menu" class="modal"><section class="menu-card"><div class="eyebrow">STRATEGIC DEFENSE / SECTOR COMMAND</div><h1>INCURSION<span>.</span></h1><p class="tagline">Hold the line. Build your fleets. Close the wormhole.</p><div class="menu-grid"><div><label>Device charge duration<select id="duration"><option value="10">10 minutes</option><option value="20" selected>20 minutes</option><option value="30">30 minutes</option></select></label><label>Difficulty<select id="difficulty"><option>Cadet</option><option selected>Commander</option><option>Veteran</option><option>Admiral</option></select></label><label>Map archetype<select id="archetype"><option>Random</option><option>Bastion</option><option>Frontier</option><option>Crossroads</option><option>Labyrinth</option></select></label><label>Map seed<input id="seed" value="sector-01" maxlength="80"></label><button id="regenerate">↻ Regenerate sector</button><button class="primary" id="start">Begin defense →</button><button id="history">Match history</button></div><div class="preview"><canvas id="preview" width="320" height="320"></canvas><strong id="mapInfo"></strong><small>Green: deposits · Gray: asteroids · Purple: potential portals</small></div></div><p class="footnote">Single-player · No network required · Mouse or landscape touch</p></section></div>
-<div id="dialog" class="modal" hidden><section class="dialog-card"><div class="panel-head"><h2 id="dialogTitle"></h2><button id="closeDialog">✕</button></div><div id="dialogBody"></div></section></div><div id="fatal" class="modal" hidden><section class="dialog-card"><h2>Unable to initialize Incursion</h2><p id="fatalText"></p><a href="tests/">Simulation tests</a></section></div>
-<script type="module" src="src/main.js"></script><noscript>Incursion requires JavaScript.</noscript></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Incursion | Foundation</title><link rel="stylesheet" href="styles/app.css">
+</head>
+<body>
+<main id="app" aria-label="Incursion foundation scene">
+ <canvas id="battlefield" aria-label="Interactive 2.5D demonstration battlefield. Pan, zoom or select a ship." tabindex="0"></canvas>
+ <header class="topbar">
+  <div class="brand"><div class="brandmark" aria-hidden="true">◈</div><div><h1>INCURSION</h1><p>01 / APPLICATION FOUNDATION</p></div></div>
+  <div class="clockread"><span class="eyebrow">SIMULATION TIME</span><strong id="time">00:00.0</strong><span id="clockStatus" class="status">RUNNING</span></div>
+  <div class="toolbar" aria-label="Simulation controls"><button id="pause" aria-pressed="false">Ⅱ&nbsp; Pause</button><div class="speed" role="group" aria-label="Simulation speed"><button data-speed="0.5" aria-pressed="false">½×</button><button data-speed="1" aria-pressed="true">1×</button><button data-speed="2" aria-pressed="false">2×</button></div><button id="reset">Reset</button></div>
+ </header>
+ <section class="scene-label" aria-label="Scene information"><span class="eyebrow">VISUAL DIRECTION / DEMO 01</span><h2>Deep-space test range</h2><p>Representative artwork · no combat or match systems</p><div class="legend"><span><i class="friendly"></i>Friendly</span><span><i class="hostile"></i>Hostile</span></div></section>
+ <aside class="inspector" id="inspector" aria-label="Entity inspector">
+  <div class="panelhead"><span class="eyebrow">INSPECTION</span><button id="collapseInspector" aria-expanded="true" aria-controls="inspectBody" aria-label="Collapse inspector">−</button></div>
+  <div id="inspectBody"><p id="entityName" class="entity-name">Select a vessel</p><p id="entityType" class="muted">Click or tap any sprite to inspect it.</p><dl id="entityData" hidden><div><dt>Entity ID</dt><dd id="entityId">—</dd></div><div><dt>World position</dt><dd id="entityPosition">—</dd></div><div><dt>Heading</dt><dd id="entityHeading">—</dd></div></dl><button id="focus" disabled>Focus selection</button></div>
+ </aside>
+ <section id="debugPanel" class="diagnostics" hidden aria-label="Developer diagnostics">
+  <div class="panelhead"><span class="eyebrow">DEVELOPER DIAGNOSTICS</span><button id="debugClose" aria-label="Hide diagnostics">×</button></div>
+  <pre id="diagnosticText"></pre>
+  <div class="debug-actions"><button id="step">Advance one tick</button><button id="spawn">Spawn demo ship</button><button id="remove" disabled>Remove selection</button><label><input id="debugGrid" type="checkbox" checked> Projection grid</label></div>
+  <a href="tests/">Open foundation tests</a>
+ </section>
+ <footer class="bottom">
+  <div class="camera-controls"><span class="eyebrow">CAMERA</span><button id="zoomOut" aria-label="Zoom out">−</button><strong id="zoomLevel">100%</strong><button id="zoomIn" aria-label="Zoom in">+</button><button id="fit">Fit scene</button><label class="labels-control"><input id="labels" type="checkbox" checked> Labels</label><label class="quality-control">Quality <select id="quality"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label><button id="debugToggle" aria-pressed="false" hidden>Debug</button></div>
+  <div class="help"><span>Drag / WASD to pan</span><span>Wheel / pinch to zoom</span><span>Double-click to focus</span><span>Space to pause</span><a href="tests/">Tests</a></div>
+ </footer>
+ <div id="toast" role="status" aria-live="polite" hidden></div>
+ <div id="error" role="alert" hidden><h2>Unable to launch Incursion</h2><p id="errorText">Canvas 2D and native JavaScript modules are required. Serve this directory over HTTP using a modern browser.</p><a href="tests/">Open tests</a></div>
+ <noscript><div class="noscript">Incursion requires JavaScript. Enable it and reload the page.</div></noscript>
+</main>
+<script type="module" src="src/main.js" onerror="document.getElementById('error').hidden=false"></script>
+</body></html>

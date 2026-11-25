@@ -1,1 +1,3 @@
-import {run} from './suite.js';let rows=await run(r=>console.log(`${r.pass?'PASS':'FAIL'} ${r.name} (${r.ms.toFixed(1)} ms) ${r.error||''}`));console.log(`${rows.filter(r=>r.pass).length}/${rows.length} passed`);if(rows.some(r=>!r.pass))process.exitCode=1;
+// Optional headless core verification (Node 22+); the browser page is the canonical harness.
+import {coreTests,runTests} from './suite.js';
+const results=await runTests(coreTests);for(const r of results){console.log(`${r.ok?'PASS':'FAIL'} ${r.name} (${r.ms.toFixed(2)} ms)`);if(!r.ok)console.error(r.error);}const passed=results.filter(r=>r.ok).length;console.log(`${passed}/${results.length} passed`);if(passed!==results.length)process.exitCode=1;

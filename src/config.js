@@ -1,11 +1,9 @@
-// World units, simulation seconds, energy units (E). Initial tuning: GAME_SPEC §15.
-// Command station income increased provisionally to 90 E/s after failed 60 E/s scenarios; see DEVELOPMENT.md.
-const ship=(name,shield,hull,damage,interval,range,sensor,cost,time,role='neutral')=>({name,shield,hull,damage,interval,range,sensor,cost,time,role,radius:12});
-const structure=(name,shield,hull,damage,interval,range,sensor,influence,cost,time,role='neutral',radius=23)=>({...ship(name,shield,hull,damage,interval,range,sensor,cost,time,role),structure:true,influence,radius});
-export const TYPES={carrier:ship('Light carrier',80,120,15,.5,160,260,1500,10,'carrier'),missile:ship('Missile cruiser',120,180,30,2,220,300,1500,10,'missile'),destroyer:ship('Destroyer',160,240,22,1,110,230,1500,10,'destroyer'),frigate:ship('Command frigate',200,300,8,1,130,300,6000,30),miner:ship('Miner',40,100,0,1,0,160,1000,8),constructor:ship('Constructor',40,100,0,1,0,160,1000,8),hq:structure('Command station',600,1200,0,1,0,400,300,0,0,'neutral',48),yard:structure('Shipyard',200,400,0,1,0,220,200,3000,15,'neutral',36),storage:structure('Energy storage',100,250,0,1,0,160,160,1200,10),sensor:structure('Sensor station',80,160,0,1,0,550,180,1000,6),battery:structure('Missile battery',150,220,36,2,250,300,160,1200,8,'missile'),turret:structure('Beam turret',200,320,26,1,130,230,160,1200,8,'destroyer'),post:structure('Barrier post',100,180,0,1,0,100,100,400,4,'neutral',11)};
-export const COMBAT=['carrier','missile','destroyer'], SHIPS=[...COMBAT,'frigate','miner','constructor'], STRUCTURES=['yard','storage','sensor','battery','turret','post'];
-export const C={size:1800,cell:20,hz:20,speed:60,sparse:.65,nebula:.65,formation:90,leash:250,collection:100,transfer:100,fast:3,span:100,initiate:40,income:90,start:3000,capacity:4000,storage:4000,refund:.25,pickup:80,deployRadius:100,deployTime:5,grace:35,recovery:18,warning:15,shieldRate:.08,hullRate:.01,repairDelay:4,shieldCost:.5,hullCost:2,maxFrigates:3,slots:10,adv:2,disadv:.75};
-export const DIFFICULTY={Cadet:[3,20,1.25,2],Commander:[4,32,1,3],Veteran:[5,45,.85,4],Admiral:[6,60,.7,5]};
-export const BEATS={carrier:'missile',missile:'destroyer',destroyer:'carrier'};
-export function multiplier(a,b){return BEATS[a]===b?C.adv:BEATS[b]===a?C.disadv:1}
-export const FLEETS=['Alpha','Bravo','Charlie'];
+// Milestone 1: distances in world units, times in seconds, screen sizes in CSS pixels.
+export const CONFIG = Object.freeze({
+  world: Object.freeze({width: 1800, height: 1800}),
+  clock: Object.freeze({hz: 20, speeds: Object.freeze([0.5, 1, 2]), maxFrameSeconds: 0.25, maxStepsPerFrame: 10}),
+  camera: Object.freeze({compression: 0.65, minZoom: 0.22, maxZoom: 3, keyboardPixelsPerSecond: 500, wheelSensitivity: 0.0014, dragThreshold: 6, fitPadding: 84}),
+  visuals: Object.freeze({headingFrames: 24, spritePixelsPerUnit: 2, maxDpr: 2, backgroundSeed: 7149, starCounts: Object.freeze([260, 120, 42]), qualityDpr: Object.freeze({low: 1, medium: 1.5, high: 2}), defaultQuality: 'auto'}),
+  demo: Object.freeze({seed: 'foundation-01', orbitSpeed: 0.095, showLabels: true})
+});
+export const LABELS = Object.freeze({station:'Command station', frigate:'Command frigate', carrier:'Light carrier', missile:'Missile cruiser', destroyer:'Destroyer', miner:'Miner', constructor:'Constructor'});

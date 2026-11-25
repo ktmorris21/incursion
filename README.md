@@ -1,54 +1,45 @@
-# Incursion — playable development build
+# Incursion — Milestone 1: Application foundation
 
-Single-player defensive space RTS / tower defense. Build an energy economy, organize up to three fleets, survive escalating incursions, then deliver the destabilizer to the active wormhole. This is a first playable development implementation, not a completed acceptance review. See `DEVELOPMENT.md` for verified behavior and remaining gaps against `GAME_SPEC.md` (the authoritative specification already in the repository).
+A fresh implementation following **GAME_SPEC.md v1.1 (2.5D rendering and staged implementation)**. This is the first review increment, not a playable combat or match build.
 
-## Run locally
+## Run
 
-The source is directly servable: no npm install, bundling, backend or network assets required.
+Serve the repository root with any static HTTP server. For example:
 
 ```sh
 python3 -m http.server 8000
 ```
 
-Open `http://localhost:8000/` in a WebGL-capable browser. Serve the directory containing `index.html`, not its parent. If deploying to an existing static host, upload the same files as-is. `file://` is not supported.
+Open `http://localhost:8000/`. No dependency installation, build step, backend, CDN or WebGL is required. Use a modern browser with Canvas 2D and native ES modules. Opening the file directly with `file://` is not supported.
 
-## Controls
+## Review the foundation
 
-| Action | Desktop | Touch |
-|---|---|---|
-| Select asset | Left click; fleet shortcuts 1/2/3 | Tap asset or fleet shortcut |
-| Move frigate/civilian | Right click ground | Tap empty ground while selected |
-| Pan | WASD, arrows, drag battlefield | Drag battlefield |
-| Zoom | Wheel | Pinch |
-| Focus fleet | Double-click or double-press 1/2/3 | Double-tap |
-| Assign miner | Select miner, click deposit or use asset panel | Same |
-| Build | Select constructor, structure type, click location, Confirm | Same |
-| Build wall | Select constructor, wall line, click both endpoints, Confirm | Same |
-| Queue ships | Select shipyard, select destination fleet if desired, choose ship | Same |
-| Pause | Space or HUD | HUD |
-| Cancel build / menu | Escape or visible control | Visible control |
-| Health bars | H or settings | Settings |
+- Inspect the representative friendly/hostile ship silhouettes and command station on the demo battlefield. The additional moving frigate is a deterministic animation fixture, not a gameplay fleet.
+- Click/tap to inspect a sprite; double-click or use **Focus selection** to focus it.
+- Drag with the left or middle mouse button, use WASD/arrows, or drag with one finger to pan. Wheel/pinch and the zoom buttons zoom. **Fit scene** restores a useful overview.
+- Pause/resume with Space or the toolbar. Try 0.5×, 1× and 2× speed. Camera navigation and inspection remain available while paused.
+- Change quality, toggle labels, resize the browser, and try landscape touch controls. A hidden tab automatically pauses; resume explicitly.
+- Open `/?debug` for developer diagnostics, the optional projection grid, entity counts, camera/pointer coordinates, backing-store size, timing, and controlled spawn/remove/single-step actions. Spawn/remove and reset are disabled or rejected during pause; single-step is an explicit debug exception.
 
-Tip: dock the initial miner immediately, grow extraction, move Alpha to cover the active approach, and mix missile batteries and beam turrets. At full charge, bring a living frigate within 80 world units of the command station (or dropped device) and then within 100 of the active wormhole for five uninterrupted simulation seconds. The command station must survive.
+## Tests
 
-## Native tests and diagnostics
-
-Open `http://localhost:8000/tests/` for the browser-native simulation test suite. It is independent of WebGL. There is an optional Node runner for the exact same test functions (Node is not required to serve or play):
+Open `/tests/` for the native browser suite (19 test groups; no external dependencies). Optional core-only test invocation on Node 22+:
 
 ```sh
 node tests/run.mjs
-node tests/scenario.mjs sector-01 10
 ```
 
-The scenario uses normal commands, no debug actions. It is a scripted strategy, not a human playtest, and results depend on the seed. Start the game with `?debug` to expose FPS, simulation timing, selection data and controlled sandbox actions. Debug-assisted games are excluded from history. `window.incursion` is available only in debug mode.
+See [DEVELOPMENT.md](DEVELOPMENT.md) for the executed tests, limitations and review criteria.
 
 ## Architecture
 
-- `src/config.js`: grouped entity, combat, world, pacing and economy constants.
-- `src/world.js`: independent seeded random stream, terrain and validation, grid A* navigation, segment collision.
-- `src/sim.js`: data-driven authoritative simulation, validated commands, combat, fleets, economy, construction, wave and objective systems. No DOM or renderer imports.
-- `src/render.js`: self-contained native WebGL 3D geometry with Canvas 2D tactical and effects overlay; no external assets. This is a deliberate temporary deviation from the Three.js requirement, explained in development notes.
-- `src/main.js`: fixed 20 Hz clock, DOM input/HUD, camera, settings/history, procedural audio, debug tools.
-- `tests/`: native browser tests, optional Node runner and reproducible normal-command scenario.
+- `src/config.js`: grouped foundation settings, units and initial defaults.
+- `src/core/`: plain-data state, lifecycle, validated debug commands, deterministic demo and fixed-step clock; no DOM or rendering imports.
+- `src/rendering/`: invertible oblique camera, directional sprite registry, Canvas 2D rendering, depth sort and picking.
+- `src/ui/input.js`: mouse, keyboard and multi-touch camera input adapter.
+- `src/main.js`: application orchestration and DOM panels.
+- `tests/`: native browser harness, shared assertions and optional Node runner.
 
-The game keeps settings and the latest 20 ordinary results in versioned localStorage keys. There is no active-match save. All procedural geometry, sounds and art in this package were created for this implementation. No third-party art or audio assets.
+All initial artwork is original procedural 2D artwork, cached in directional frames. Replacement local PNG/WebP/SVG assets or atlases can be registered through `SpriteRegistry.register(kind, faction, descriptor)`. The descriptor provides `url`, `frames`, `columns`, `scale`, normalized `anchor`, `headingOffset` (radians), and `attachmentPoints`. Failed/pending loads use procedural artwork. Visual sizes and attachment points do not define gameplay collision or damage. No third-party assets are used.
+
+**Next gate:** Milestone 2 — Combat sandbox. Do not begin it until Milestone 1 is approved or continuation is explicitly requested.
