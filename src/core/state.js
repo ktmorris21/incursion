@@ -1,6 +1,7 @@
 import {CONFIG, LABELS, COMBAT} from '../config.js';
 import {clamp,lerp,lerpAngle} from './math.js';
 import {initCombat,combatStep,isEscort} from './combat.js';
+import {generateMap,walkable,clearance,nearestOpen,findPath} from './terrain.js';
 
 // The authoritative state contains plain records only; no renderer, input or DOM references.
 export function createState(seed=CONFIG.demo.seed) {
@@ -12,6 +13,7 @@ export function spawn(state, data) {
   if (!Number.isFinite(data.x)||!Number.isFinite(data.y)||!Number.isFinite(data.heading??0)) throw new TypeError('Non-finite pose');
   const x=clamp(data.x,0,CONFIG.world.width),y=clamp(data.y,0,CONFIG.world.height),heading=data.heading??0;
   const e={id:state.nextId++,kind:data.kind,faction:data.faction,label:data.label??LABELS[data.kind],x,y,heading,prevX:x,prevY:y,prevHeading:heading,motion:data.motion?{...data.motion}:null};
+  if(state.map&&!walkable(state.map,e,clearance(e)))throw new TypeError('Spawn point obstructed by terrain or map edge');
   initCombat(e);state.entities.push(e);state.events.push({type:'spawned',id:e.id,tick:state.tick});return e;
 }
 export function destroy(state,id) {
@@ -24,13 +26,15 @@ export function drainEvents(state) {return state.events.splice(0);}
 export const canPosition=(state,e)=>!!e&&state.sandbox&&e.kind!=='station'&&!(isEscort(e)&&state.entities.some(p=>p.kind==='frigate'&&p.faction==='friendly'&&p.hull>0));
 export function applyCommand(state, command, paused=false) {
   if(paused)return {ok:false,reason:'Simulation paused'};
+  if(state.preview)return {ok:false,reason:'Accept the map preview first'};
   if(command?.type==='spawn') {try{return {ok:true,id:spawn(state,command.data).id};}catch(e){return {ok:false,reason:e.message};}}
   if(command?.type==='destroy')return {ok:destroy(state,command.id)};
   if(command?.type==='engage'&&state.sandbox){if(!state.entities.some(e=>e.faction==='friendly')||!state.entities.some(e=>e.faction==='hostile'))return {ok:false,reason:'Spawn both factions first'};state.engaged=true;state.outcome=null;return {ok:true};}
- if(command?.type==='position'&&state.sandbox){const e=state.entities.find(e=>e.id===command.id);if(!canPosition(state,e)||!Number.isFinite(command.x)||!Number.isFinite(command.y))return {ok:false,reason:e&&isEscort(e)?'Move the command ship; its escorts follow automatically.':'Invalid position'};e.destination={x:clamp(command.x,0,CONFIG.world.width),y:clamp(command.y,0,CONFIG.world.height)};return {ok:true};}
+ if(command?.type==='position'&&state.sandbox){const e=state.entities.find(e=>e.id===command.id);if(!canPosition(state,e)||!Number.isFinite(command.x)||!Number.isFinite(command.y))return {ok:false,reason:e&&isEscort(e)?'Move the command ship; its escorts follow automatically.':'Invalid position'};const dest={x:clamp(command.x,0,CONFIG.world.width),y:clamp(command.y,0,CONFIG.world.height)};if(state.map){if(!walkable(state.map,dest,clearance(e)))return {ok:false,reason:'Destination obstructed by dense terrain or map edge'};const points=findPath(state.map,e,dest,clearance(e));if(!points)return {ok:false,reason:'No navigable route'};e.route={goal:dest,points,tick:state.tick};}e.destination=dest;return {ok:true};}
  return {ok:false,reason:'Unknown sandbox command'};
 }
 export function step(state,dt=1/CONFIG.clock.hz) {
+  if(state.preview)return;
   state.tick++;state.time=state.tick/CONFIG.clock.hz;
   if(state.sandbox){for(const e of state.entities){e.prevX=e.x;e.prevY=e.y;e.prevHeading=e.heading;}combatStep(state,dt,destroy);return;}
   // A deterministic, non-gameplay animation fixture used to verify interpolation.
@@ -71,5 +75,17 @@ export function makeBattle(preset='fleet',close=false){
  const add=(kind,faction,x,y)=>spawn(s,{kind,faction,x,y,heading:faction==='friendly'?0:Math.PI});
  if(Object.hasOwn(pair,preset)){add(pair[preset][0],'friendly',900-gap/2,900);add(pair[preset][1],'hostile',900+gap/2,900);}
  else if(preset==='fleet'){const cx=390,cy=900;for(let i=0;i<6;i++){const kind=['carrier','missile','destroyer'][i%3],a=i*Math.PI/3,r=CONFIG.patrol.radii[kind];spawn(s,{kind,faction:'friendly',x:cx+r*Math.cos(a),y:cy+r*Math.sin(a),heading:a+Math.PI/2});}for(let i=0;i<6;i++)add(['carrier','missile','destroyer'][i%3],'hostile',900+510+(i%2)*80,900+(Math.floor(i/2)-1)*125);add('frigate','friendly',cx,cy);}
+ drainEvents(s);return s;
+}
+
+export function makeTerrainBattle(seed='incursion-01',archetype='Auto',preview=true){
+ const s=createState(seed);s.sandbox=true;s.map=generateMap(seed,archetype);s.preview=preview;
+ const {base,portals}=s.map;
+ const add=(kind,faction,x,y,heading=0)=>{const p=nearestOpen(s.map,{x,y},clearance({kind}));return spawn(s,{kind,faction,...p,heading});};
+ add('station','friendly',base.x,base.y);const cx=base.x+180,cy=base.y;
+ add('frigate','friendly',cx,cy);
+ for(let i=0;i<3;i++){const kind=['carrier','missile','destroyer'][i],a=i*2*Math.PI/3,r=CONFIG.patrol.radii[kind];add(kind,'friendly',cx+r*Math.cos(a),cy+r*Math.sin(a),a+Math.PI/2);}
+ add('miner','friendly',base.x-80,base.y-260);add('constructor','friendly',base.x-80,base.y+260);
+ const p=portals[s.map.activePortal];for(let i=0;i<3;i++)add(['carrier','missile','destroyer'][i],'hostile',p.x,p.y+(i-1)*100,Math.PI);
  drainEvents(s);return s;
 }
