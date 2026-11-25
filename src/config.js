@@ -4,6 +4,8 @@ export const CONFIG = Object.freeze({
   clock: Object.freeze({hz: 20, speeds: Object.freeze([0.5, 1, 2]), maxFrameSeconds: 0.25, maxStepsPerFrame: 10}),
   camera: Object.freeze({elevation: 60, compression: Math.sin(Math.PI/3), minZoom: 0.22, maxZoom: 3, keyboardPixelsPerSecond: 500, wheelSensitivity: 0.0014, dragThreshold: 6, fitPadding: 84, sandboxFitMaxZoom: 1.0}),
   visuals: Object.freeze({shipScale: 0.52, maxDpr: 2, backgroundSeed: 7149, starCounts: Object.freeze([260, 120, 42]), qualityDpr: Object.freeze({low: 1, medium: 1.5, high: 2}), defaultQuality: 'auto'}),
+  // Milestone 2 sandbox preview only; full fleet command follows at Milestone 4.
+  patrol: Object.freeze({rate:.14,radii:Object.freeze({carrier:188,missile:166,destroyer:144}),settleSpeed:85}),
   demo: Object.freeze({seed: 'foundation-01', orbitSpeed: 0.285, showLabels: true})
 });
 export const LABELS = Object.freeze({station:'Command station', frigate:'Command frigate', carrier:'Light carrier', missile:'Missile cruiser', destroyer:'Destroyer', miner:'Miner', constructor:'Constructor'});
