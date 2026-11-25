@@ -1,6 +1,6 @@
 import {COMBAT,CONFIG} from '../config.js';
 import {clamp} from './math.js';
-import {speedFactor,sensorFactor,clearance,segmentClear,routeWaypoint,navigableStep,nearestOpen} from './terrain.js';
+import {speedFactor,sensorFactor,clearance,segmentClear,routeWaypoint,navigableStep,nearestOpen,dimensions} from './terrain.js';
 export const stats=e=>COMBAT.classes[e.kind];
 export const multiplier=(a,b)=>COMBAT.matrix[a]?.[b]??1;
 export const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -44,13 +44,13 @@ export function preparePatrols(entities,positions){
   members.forEach(({e},i)=>{e.patrol={leaderId:leader.id,phase:base+i*spacing,active:true,signature,count:n};});
  }
 }
-export function patrolGoal(e,from,positions,dt){
+export function patrolGoal(e,from,positions,dt,map=null){
  if(!isEscort(e)||!e.patrol?.active)return null;
  const leader=positions.find(p=>p.id===e.patrol.leaderId&&p.hull>0);
  if(!leader){e.patrol=null;return null;}
  const radius=Math.max(CONFIG.patrol.radii[e.kind],(e.patrol.count>6?88/(2*Math.sin(Math.PI/e.patrol.count)):0));
  e.patrol.phase+=CONFIG.patrol.rate*dt;
- const x=clamp(leader.x+radius*Math.cos(e.patrol.phase),0,CONFIG.world.width),y=clamp(leader.y+radius*Math.sin(e.patrol.phase),0,CONFIG.world.height);
+ const {width,height}=dimensions(map),x=clamp(leader.x+radius*Math.cos(e.patrol.phase),0,width),y=clamp(leader.y+radius*Math.sin(e.patrol.phase),0,height);
  return {x,y,leaderMoving:!!leader.destination};
 }
 // A bounded, deterministic local relaxation after movement proposals, before firing.
@@ -61,7 +61,7 @@ export function separateShips(entities,dt,map=null){
  const live=entities.filter(e=>e.hull>0).sort((a,b)=>a.id-b.id),budget=new Map(live.map(e=>[e.id,CONFIG.separation.correctionSpeed*dt]));
  const move=(e,dx,dy,amount)=>{
   const n=Math.min(amount,budget.get(e.id));if(n<=0)return 0;
-  const x=clamp(e.x+dx*n,0,CONFIG.world.width),y=clamp(e.y+dy*n,0,CONFIG.world.height),actual=Math.hypot(x-e.x,y-e.y);
+  const {width,height}=dimensions(map),x=clamp(e.x+dx*n,0,width),y=clamp(e.y+dy*n,0,height),actual=Math.hypot(x-e.x,y-e.y);
   if(map&&!segmentClear(map,e,{x,y},clearance(e)))return 0;
   e.x=x;e.y=y;budget.set(e.id,Math.max(0,budget.get(e.id)-actual));return actual;
  };
@@ -88,7 +88,7 @@ export function combatStep(state,dt,destroy){
   if(e.hull<=0||e.kind==='station')continue;
   const from=positions.find(p=>p.id===e.id);
   if((state.engaged||e.destination)&&e.patrol)e.patrol.active=false;
-  const patrol=!state.engaged&&!e.destination?patrolGoal(e,from,positions,dt):null;
+  const patrol=!state.engaged&&!e.destination?patrolGoal(e,from,positions,dt,state.map):null;
   const target=e.destination??(state.engaged&&stats(e).damage?nearest(from,positions,Infinity,false):patrol);
   if(!target)continue;
   const d=distance(from,target),stop=e.destination||patrol?0:stats(e).range*sensorFactor(state.map,from)*.98;
