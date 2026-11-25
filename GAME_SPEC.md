@@ -217,7 +217,7 @@ Use layered starfields, subtle parallax, varied asteroid forms, soft nebulae, gl
 
 | Event | Required presentation |
 |---|---|
-| Carrier attack | Cosmetic fighter launches, banking attack runs, repeated small luminous bolts, return/recovery |
+| Carrier attack | Persistent recognizable winged fighter squadron escorts the carrier while idle/moving, transits to the carrier's current target, swarms it with staggered luminous blaster strikes, and returns when no target remains; slower readable flight loops |
 | Missile cruiser / battery | Recognizable salvos, curved exhaust trails, explosive impacts |
 | Destroyer / beam turret | Solid phaser-like energy beams, emitter glow and concentrated impact flashes |
 | Command frigate attack | Modest energy bolts |
@@ -477,10 +477,10 @@ World distance units are arbitrary; time is simulation seconds. DPS below is des
 
 | Ship | Shield HP | Hull HP | Damage / interval (s) | DPS | Range | Sensor | Cost E | Build s |
 |---|---:|---:|---|---:|---:|---:|---:|---:|
-| Light carrier | 80 | 120 | 15 / 0.5 | 30 | 320 | 520 | 1,500 | 10 |
-| Missile cruiser | 120 | 180 | 30 / 2 | 15 | 440 | 600 | 1,500 | 10 |
-| Destroyer | 160 | 240 | 22 / 1 | 22 | 220 | 460 | 1,500 | 10 |
-| Command frigate | 200 | 300 | 8 / 1 | 8 | 260 | 600 | 6,000 | 30 |
+| Light carrier | 80 | 120 | 15 / 0.5 | 30 | 480 | 780 | 1,500 | 10 |
+| Missile cruiser | 120 | 180 | 30 / 2 | 15 | 660 | 900 | 1,500 | 10 |
+| Destroyer | 160 | 240 | 22 / 1 | 22 | 330 | 690 | 1,500 | 10 |
+| Command frigate | 200 | 300 | 8 / 1 | 8 | 390 | 900 | 6,000 | 30 |
 | Miner | 40 | 100 | — | 0 | 0 | 160 | 1,000 | 8 |
 | Constructor | 40 | 100 | — | 0 | 0 | 160 | 1,000 | 8 |
 
@@ -490,11 +490,11 @@ World distance units are arbitrary; time is simulation seconds. DPS below is des
 | Shipyard | 200 | 400 | — | 0 | 220 | 200 | 3,000 | 15 |
 | Energy storage | 100 | 250 | — | 0 | 160 | 160 | 1,200 | 10 |
 | Sensor station | 80 | 160 | — | 0 | 550 | 180 | 1,000 | 6 |
-| Missile battery | 150 | 220 | 36 / 2 | 500 | 600 | 160 | 1,200 | 8 |
-| Beam turret | 200 | 320 | 26 / 1 | 260 | 460 | 160 | 1,200 | 8 |
+| Missile battery | 150 | 220 | 36 / 2 | 750 | 900 | 160 | 1,200 | 8 |
+| Beam turret | 200 | 320 | 26 / 1 | 390 | 690 | 160 | 1,200 | 8 |
 | Barrier post | 100 | 180 | — | 0 | 100 | 100 | 400 | 4 |
 
-Milestone 2 naval-combat trial: ship movement is three times the preceding 90-unit/s baseline, and mobile weapon/sensor ranges are twice their previous values. Static missile/beam range and sensor values are proportionally adjusted planning defaults to preserve their intended advantage; towers are not implemented at this gate. Reevaluate speed, range, map size, travel time and later strategic radii after playtesting. Damage, intervals, costs, HP and counter multipliers are unchanged.
+Milestone 2 naval-combat trial: ship movement is three times the preceding 90-unit/s baseline, and mobile weapon/sensor ranges are three times the pre-Milestone-2 values (initial doubling followed by an additional user-directed 50% increase). Static missile/beam range and sensor values are proportionally adjusted planning defaults to preserve their intended advantage; towers are not implemented at this gate. Reevaluate speed, range, map size, travel time and later strategic radii after playtesting. Damage, intervals, costs, HP and counter multipliers are unchanged.
 
 Suggested common regeneration defaults: shield 8% maximum HP/sec, hull 1% maximum HP/sec, both begin 4 seconds after last damage; use derived HP/s internally. Shield cost 0.5 E/HP and hull cost 2 E/HP. These are per-asset configurable. Friendly hull and shields may regenerate simultaneously once eligible. Tune repair demand so major engagements create noticeable energy competition. Initial counter tests must include range effects: the 2×/0.75× multipliers alone do not guarantee every matchup at every distance. Do not eliminate range/positioning to enforce a universal outcome.
 
